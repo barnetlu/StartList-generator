@@ -1,0 +1,57 @@
+{
+  "groupRules": [
+    {
+      "patterns": [ "PRIP", "PRIPR", "PRIPRAVKA", "PR" ],
+      "value": "Pripravka"
+    },
+    {
+      "patterns": [ "ML", "MLAD", "MLADSI" ],
+      "value": "Mladsi"
+    },
+    {
+      "patterns": [ "ST", "STAR", "STARSI" ],
+      "value": "Starsi"
+    },
+    {
+      "patterns": [ "DOR", "DOROST", "DOROSTENCI", "DOROSTENKY", "DORCI", "DORKY", "STREDNI", "STRED", "DCI", "DKY" ],
+      "value": "Dorost"
+    },
+    {
+      "patterns": [ "MUZ", "MUZI", "ZEN", "ZENY", "ZENA" ],
+      "value": "Dospeli"
+    }
+  ],
+  "sexRules": [
+    {
+      "patterns": [ "DIV", "DIVKY", "DIVCI", "DOROSTENKY", "DORKY", "DKY", "ZENA", "ZEN" ],
+      "value": "Female",
+      "priority": 100
+    },
+    {
+      "patterns": [ "D" ],
+      "value": "Female",
+      "priority": 10,
+      "exactOnly": true
+    },
+    {
+      "patterns": [ "CH", "CHLAP", "CHLAPCI", "KL", "KLUK", "DORCI", "DOROSTENCI", "DCI", "CHL", "MUZ", "MUZI" ],
+      "value": "Male"
+    }
+  ],
+  "subgroupRules": [
+    {
+      "patterns": [ "ML", "MLAD", "MLADSI" ],
+      "value": "Mladsi"
+    },
+    {
+      "patterns": [ "STR", "STRED", "STREDNI" ],
+      "value": "Stredni"
+    },
+    {
+      "patterns": [ "ST", "STAR", "STARSI" ],
+      "value": "Starsi"
+    }
+  ],
+  "noSexIfGroup": [ "Pripravka" ],
+  "noSubGroupIfGroup": ["Pripravka", "Mladsi", "Starsi", "Dospeli"]
+}

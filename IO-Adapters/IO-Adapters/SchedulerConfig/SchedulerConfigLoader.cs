@@ -1,0 +1,81 @@
+﻿using StartList_Core.Models;
+using System.Text.Json;
+using StartList_Core.Scheduling;
+
+namespace IO_Adapters.SchedulerConfig
+{
+    public static class SchedulerConfigLoader
+    {
+        public static StartList_Core.Scheduling.SchedulerConfig LoadSchedulerConfig(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                throw new ArgumentException("Scheduler config path is empty.", nameof(path));
+
+            if (!File.Exists(path))
+                throw new FileNotFoundException("Scheduler config JSON not found.", path);
+
+            var json = File.ReadAllText(path);
+
+            var dto = JsonSerializer.Deserialize<SchedulerConfigDto>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }) ?? throw new InvalidOperationException("Failed to parse scheduler config JSON.");
+
+            static T ParseEnum<T>(string value) where T : struct
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                    throw new InvalidOperationException($"Empty enum value for {typeof(T).Name}.");
+
+                if (!Enum.TryParse<T>(value.Trim(), ignoreCase: true, out var result))
+                    throw new InvalidOperationException($"Invalid value '{value}' for enum {typeof(T).Name}.");
+
+                return result;
+            }
+
+            // ---- categoryOrder ----
+            var order = new List<CategoryKey>(dto.CategoryOrder.Count);
+            for (int i = 0; i < dto.CategoryOrder.Count; i++)
+            {
+                var item = dto.CategoryOrder[i];
+
+                var age = ParseEnum<AgeGroup>(item.AgeGroup);
+                var sex = ParseEnum<SexEnum>(item.Sex);
+                var sub = ParseEnum<SubGroup>(item.SubGroup);
+
+                order.Add(new CategoryKey(age, sex, sub));
+            }
+
+            // Volitelně: detekce duplicit
+            var dup = order.GroupBy(x => x).FirstOrDefault(g => g.Count() > 1);
+            if (dup is not null)
+                throw new InvalidOperationException($"Duplicate categoryOrder entry in scheduler config: {dup.Key}");
+
+            // ---- rules ----
+            var rulesDto = dto.Rules ?? new SchedulerRulesDto();
+
+            var rules = new SchedulingRules
+            {
+                MaxOneClubPerHeat = rulesDto.MaxOneClubPerHeat,
+                ClubCooldownHeats = Math.Max(1, rulesDto.ClubCooldownHeats) // 1 = žádný cooldown
+            };
+
+            var tpDto = dto.TrackPlan ?? new TrackPlanDto();
+
+            var trackPlan = new TrackPlan
+            {
+                TotalLanes = Math.Max(1, tpDto.TotalLanes),
+                InitialBarieraLanes = Math.Max(0, tpDto.InitialBarieraLanes),
+                AfterSwitchBarieraLanes = Math.Max(0, tpDto.AfterSwitchBarieraLanes),
+                SwitchRule = ParseEnum<SwitchRuleType>(tpDto.SwitchRule)
+            };
+
+            // sanity: bariera lanes nesmí překročit total
+            if (trackPlan.InitialBarieraLanes > trackPlan.TotalLanes)
+                throw new InvalidOperationException("initialBarieraLanes > totalLanes");
+            if (trackPlan.AfterSwitchBarieraLanes > trackPlan.TotalLanes)
+                throw new InvalidOperationException("afterSwitchBarieraLanes > totalLanes");
+
+            return new StartList_Core.Scheduling.SchedulerConfig { CategoryOrder = order, Rules = rules, TrackPlan = trackPlan };
+        }
+    }
+}

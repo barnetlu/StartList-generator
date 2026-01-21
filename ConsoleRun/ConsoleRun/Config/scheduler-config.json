@@ -1,0 +1,87 @@
+{
+  "categoryOrder": [
+    {
+      "ageGroup": "Pripravka",
+      "sex": "Mixed",
+      "subGroup": "None"
+    },
+    {
+      "ageGroup": "Mladsi",
+      "sex": "Female",
+      "subGroup": "None"
+    },
+    {
+      "ageGroup": "Mladsi",
+      "sex": "Male",
+      "subGroup": "None"
+    },
+    {
+      "ageGroup": "Starsi",
+      "sex": "Female",
+      "subGroup": "None"
+    },
+    {
+      "ageGroup": "Starsi",
+      "sex": "Male",
+      "subGroup": "None"
+    }
+  ],
+  "rules": {
+    "maxOneClubPerHeat": true,
+    "clubCooldownHeats": 2
+  },
+  "trackPlan": {
+    "totalLanes": 3,
+    "initialBarieraLanes": 0,
+    "afterSwitchBarieraLanes": 1,
+    "switchRule": "BarieraRemainingEqualsBrevnoRemainingDiv2"
+  },
+  "excelStyle": {
+    "categoryColors": [
+      {
+        "ageGroup": "Pripravka",
+        "sex": "Mixed",
+        "subGroup": "None",
+        "rgb": [ 255, 255, 0 ]
+      },
+      {
+        "ageGroup": "Mladsi",
+        "sex": "Female",
+        "subGroup": "None",
+        "rgb": [ 252, 228, 214 ]
+      },
+      {
+        "ageGroup": "Mladsi",
+        "sex": "Male",
+        "subGroup": "None",
+        "rgb": [ 221, 235, 247 ]
+      },
+      {
+        "ageGroup": "Starsi",
+        "sex": "Female",
+        "subGroup": "None",
+        "rgb": [ 244, 176, 132 ]
+      },
+      {
+        "ageGroup": "Starsi",
+        "sex": "Male",
+        "subGroup": "None",
+        "rgb": [ 142, 169, 219 ]
+      }
+    ],
+    "laneStartColors": [
+      {
+        "lane": 1,
+        "rgb": [ 255, 0, 0 ]
+      },
+      {
+        "lane": 2,
+        "rgb": [ 0, 176, 240 ]
+      },
+      {
+        "lane": 3,
+        "rgb": [ 255, 255, 255 ]
+      }
+    ]
+  }
+}
