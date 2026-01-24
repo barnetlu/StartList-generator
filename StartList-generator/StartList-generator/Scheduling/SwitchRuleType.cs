@@ -6,6 +6,8 @@ namespace StartList_Core.Scheduling
 {
     public enum SwitchRuleType
     {
-        BarieraRemainingEqualsBrevnoRemainingDiv2
+        BarieraRemainingEqualsBrevnoRemainingDivRemainingLanes,
+        Manual,
+        Automatic
     }
 }

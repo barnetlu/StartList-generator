@@ -27,23 +27,47 @@ namespace IO_Adapters.Excel
             var ws = wb.Worksheets.Add("Startovka");
             int r = 1;
             int totalLanes = style.TotalLanes;
+            int colsPerLane = 4;
+
+            ws.Cell(r, 1).Value = "Startovka";
+            ws.Range(r, 1, r, totalLanes * colsPerLane-1).Merge();
+            ws.Row(r).Style.Font.Bold = true;
+            ws.Row(r).Height = 24.75;
+            ws.Row(r).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            ws.Row(r).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+            r++;
+            for (int lane = 1; lane <= totalLanes; lane++)
+            {
+                ws.Cell(r, (lane - 1) * colsPerLane + 1).Value = $"Dráha {lane}";
+                ws.Range(r, (lane - 1) * colsPerLane + 1, r, lane * colsPerLane-1).Merge();
+            }
+            ws.Row(r).Style.Font.Bold = true;
+            ws.Row(r).Height = 24.75;
+            ws.Row(r).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            ws.Row(r).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+            r++;
 
             // Header – 3 sloupce na dráhu: Name | SDH | Start#
             int col = 1;
             for (int lane = 1; lane <= totalLanes; lane++)
             {
-                ws.Cell(r, col++).Value = $"Dráha {lane} – Jméno a příjmení";
+                ws.Column(col).Width = 23;
+                ws.Cell(r, col++).Value = $"Jméno a příjmení";
+                ws.Column(col).Width = 23;
                 ws.Cell(r, col++).Value = "SDH";
-                ws.Cell(r, col++).Value = "Start #";
+                ws.Column(col).Width = 3.5;
+                ws.Cell(r, col++).Value = "#";
+                ws.Column(col++).Width = 2;
             }
 
             ws.Row(r).Style.Font.Bold = true;
             ws.SheetView.FreezeRows(1);
+            ws.Row(r).Height = 24.75;
             r++;
 
             foreach (var h in heats.OrderBy(x => x.Number))
             {
-                var arranged = ArrangeLanes(h, style.TotalLanes);
+                var arranged = h.Lanes;
                 col = 1;
 
                 for (int lane = 1; lane <= style.TotalLanes; lane++)
@@ -51,6 +75,7 @@ namespace IO_Adapters.Excel
                     var nameCell = ws.Cell(r, col++);
                     var clubCell = ws.Cell(r, col++);
                     var startCell = ws.Cell(r, col++);
+                    col++;
 
                     startCell.Value = h.Number;
                     ApplyFill(startCell, style.LaneStartColors[lane]);
@@ -73,11 +98,19 @@ namespace IO_Adapters.Excel
                     ApplyFill(nameCell, rgb);
                     ApplyFill(clubCell, rgb);
                 }
-
+                ws.Row(r).Height = 24.75;
                 r++;
             }
 
-            ws.Columns().AdjustToContents(1, 60);
+            IXLRange tableRange;
+            for (int lane = 1; lane <= totalLanes; lane++)
+            {
+                tableRange = ws.Range(2, (lane - 1) * colsPerLane + 1, r-1, lane * colsPerLane - 1);
+                tableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+                tableRange.Style.Border.InsideBorderColor = XLColor.Black;
+                tableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Medium;
+                tableRange.Style.Border.OutsideBorderColor = XLColor.Black;
+            }
         }
 
         private static Dictionary<Competitor, (int heatNo, int laneNo)> BuildStartMap(IReadOnlyList<Heat> heats, int totalLanes)
@@ -86,7 +119,7 @@ namespace IO_Adapters.Excel
 
             foreach (var h in heats.OrderBy(x => x.Number))
             {
-                var arranged = ArrangeLanes(h, totalLanes);
+                var arranged = h.Lanes;
                 for (int lane = 1; lane <= totalLanes; lane++)
                 {
                     var c = arranged[lane - 1];
@@ -109,7 +142,14 @@ namespace IO_Adapters.Excel
             var lanes = new Competitor?[totalLanes];
 
             var brevno = h.Competitors.Where(c => c.Category.ObstacleType == ObstacleType.Crossbar).ToList();
-            var bariera = h.Competitors.Where(c => c.Category.ObstacleType == ObstacleType.Barrier150).ToList();
+            // bariéry zprava v pořadí: 200 -> 170 -> 150
+            var barriers = h.Competitors
+                .Where(c => c.Category.ObstacleType == ObstacleType.Barrier200)
+                .Concat(h.Competitors.Where(c => c.Category.ObstacleType == ObstacleType.Barrier170))
+                .Concat(h.Competitors.Where(c => c.Category.ObstacleType == ObstacleType.Barrier150));
+            //var bariera150 = h.Competitors.Where(c => c.Category.ObstacleType == ObstacleType.Barrier150).ToList();
+            //var bariera170 = h.Competitors.Where(c => c.Category.ObstacleType == ObstacleType.Barrier170).ToList();
+            //var bariera200 = h.Competitors.Where(c => c.Category.ObstacleType == ObstacleType.Barrier200).ToList();
 
             // Brevno zleva
             int i = 0;
@@ -121,12 +161,24 @@ namespace IO_Adapters.Excel
 
             // Bariéra zprava (poslední dráhy)
             int j = totalLanes - 1;
-            foreach (var c in bariera)
+            foreach (var c in barriers)
             {
                 while (j >= 0 && lanes[j] != null) j--;
                 if (j < 0) break;
                 lanes[j--] = c;
             }
+            //foreach (var c in bariera170)
+            //{
+            //    while (j >= 0 && lanes[j] != null) j--;
+            //    if (j < 0) break;
+            //    lanes[j--] = c;
+            //}
+            //foreach (var c in bariera150)
+            //{
+            //    while (j >= 0 && lanes[j] != null) j--;
+            //    if (j < 0) break;
+            //    lanes[j--] = c;
+            //}
 
             return lanes;
         }
@@ -148,16 +200,19 @@ namespace IO_Adapters.Excel
 
             foreach (var g in clubs)
             {
+                var firstRow = r;
                 // Nadpis SDH
                 ws.Cell(r, 1).Value = g.Key;
                 ws.Range(r, 1, r, 2).Merge();
                 ws.Row(r).Style.Font.Bold = true;
+                ws.Row(r).Height = 24.75;
                 r++;
 
                 // hlavička
-                ws.Cell(r, 1).Value = "Start #";
+                ws.Cell(r, 1).Value = "#";
                 ws.Cell(r, 2).Value = "Jméno a příjmení";
                 ws.Row(r).Style.Font.Bold = true;
+                ws.Row(r).Height = 24.75;
                 r++;
 
                 foreach (var c in g.OrderBy(x => startMap.TryGetValue(x, out var s) ? s.heatNo : 999999))
@@ -181,10 +236,14 @@ namespace IO_Adapters.Excel
                         ? cc
                         : excelCfg.DefaultCategoryColor;
                     ApplyFill(nameCell, catColor);
-
+                    ws.Row(r).Height = 24.75;
                     r++;
                 }
-
+                var tableRange = ws.Range(firstRow, 1, r - 1, 2);
+                tableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+                tableRange.Style.Border.InsideBorderColor = XLColor.Black;
+                tableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Medium;
+                tableRange.Style.Border.OutsideBorderColor = XLColor.Black;
                 r++; // mezera mezi SDH
             }
 
@@ -193,32 +252,53 @@ namespace IO_Adapters.Excel
 
         private static void WriteResultsSheet(XLWorkbook wb, IReadOnlyList<Heat> heats, ExcelStyleConfig excelCfg)
         {
-            var ws = wb.Worksheets.Add("Vysledky");
+            var ws = wb.Worksheets.Add("Zápis");
 
             int totalLanes = excelCfg.TotalLanes;
-            int colsPerLane = 5;
+            int colsPerLane = 6;
 
             int r = 1;
-
+            ws.Cell(r,1).Value = "Zápis výsledků";
+            ws.Range(r,1,r,totalLanes * colsPerLane - 1).Merge();
+            ws.Row(r).Style.Font.Bold = true;
+            ws.Row(r).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            ws.Row(r).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+            ws.Row(r).Height = 24.75;
+            r++;
+            for (int lane = 1; lane <= totalLanes; lane++)
+            {
+                ws.Cell(r, (lane - 1)*colsPerLane + 1).Value = $"Dráha {lane}";
+                ws.Range(r, (lane - 1)*colsPerLane + 1, r, lane*colsPerLane-1).Merge();
+            }
+            ws.Row(r).Style.Font.Bold = true;
+            ws.Row(r).Height = 24.75;
+            r++;
             // ===== HEADER (stejně jako Startovka, jen s Čas + Poznámka) =====
             int col = 1;
             for (int lane = 1; lane <= totalLanes; lane++)
             {
-                ws.Cell(r, col++).Value = $"Dráha {lane} – #";
-                ws.Cell(r, col++).Value = $"Dráha {lane} – Jméno a příjmení";
+                ws.Column(col).Width = 3.5;
+                ws.Cell(r, col++).Value = $"#";
+                ws.Column(col).Width = 23;
+                ws.Cell(r, col++).Value = $"Jméno a příjmení";
+                ws.Column(col).Width = 23;
                 ws.Cell(r, col++).Value = "SDH";
+                ws.Column(col).Width = 8.5;
                 ws.Cell(r, col++).Value = "Čas";
+                ws.Column(col).Width = 12;
                 ws.Cell(r, col++).Value = "Poznámka";
+                ws.Column(col++).Width = 2;
             }
 
             ws.Row(r).Style.Font.Bold = true;
             ws.SheetView.FreezeRows(1);
+            ws.Row(r).Height = 24.75;
             r++;
 
             // ===== DATA: jeden heat = jeden řádek =====
             foreach (var h in heats.OrderBy(x => x.Number))
             {
-                var arranged = ArrangeLanes(h, totalLanes);
+                var arranged = h.Lanes;
 
                 col = 1;
                 for (int lane = 1; lane <= totalLanes; lane++)
@@ -228,6 +308,7 @@ namespace IO_Adapters.Excel
                     var clubCell = ws.Cell(r, col++);
                     var timeCell = ws.Cell(r, col++);
                     var noteCell = ws.Cell(r, col++);
+                    col++;
 
                     // # (heat number) + barva dráhy
                     startCell.Value = h.Number;
@@ -262,11 +343,21 @@ namespace IO_Adapters.Excel
                     timeCell.Value = "";
                     noteCell.Value = "";
                 }
-
+                ws.Row(r).Height = 24.75;
                 r++;
             }
 
-            ws.Columns().AdjustToContents(1, 60);
+            IXLRange tableRange;
+            for (int lane = 1; lane <= totalLanes; lane++)
+            {
+                tableRange = ws.Range(2, (lane - 1) * colsPerLane + 1, r - 1, lane * colsPerLane - 1);
+                tableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+                tableRange.Style.Border.InsideBorderColor = XLColor.Black;
+                tableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Medium;
+                tableRange.Style.Border.OutsideBorderColor = XLColor.Black;
+            }
+
+            //           ws.Columns().AdjustToContents(1, 60);
 
             // # do středu pro všechny dráhy
             for (int lane = 1; lane <= totalLanes; lane++)

@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace StartList_Core.Scheduling
 {
-    public sealed class TwoPhaseTrackScheduler
+    public sealed class TwoPhaseTrackScheduler :IScheduler
     {
         private readonly TrackPlan _plan;
         private readonly IReadOnlyList<CategoryKey> _order;
@@ -58,7 +58,7 @@ namespace StartList_Core.Scheduling
             while (brevnoRemaining > 0 || barieraRemaining > 0)
             {
                 // switch decision
-                if (barieraLanes != _plan.AfterSwitchBarieraLanes && ShouldSwitch(brevnoRemaining, barieraRemaining))
+                if (barieraLanes != _plan.AfterSwitchBarieraLanes && ShouldSwitch(brevnoRemaining, barieraRemaining, _plan.AfterSwitchBarieraLanes, _plan.TotalLanes))
                 {
                     barieraLanes = _plan.AfterSwitchBarieraLanes;
                     report.SwitchAtHeat ??= heatNo; // poprvé
@@ -67,7 +67,7 @@ namespace StartList_Core.Scheduling
                 int totalLanes = _plan.TotalLanes;
                 int brevnoLanes = Math.Max(0, totalLanes - barieraLanes);
 
-                var laneCompetitors = new List<Competitor>(totalLanes);
+                var laneCompetitors = new Competitor?[totalLanes];
 
                 var forbiddenClubs = BuildForbiddenClubs(lastHeatsClubs);
                 var usedClubsThisHeat = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -93,7 +93,7 @@ namespace StartList_Core.Scheduling
                         break; // zbytek crossbar lanes nech prázdný
                     }
 
-                    laneCompetitors.Add(picked);
+                    laneCompetitors[lane] = picked;
                     brevnoRemaining--;
                 }
 
@@ -117,15 +117,15 @@ namespace StartList_Core.Scheduling
                         break;
                     }
 
-                    laneCompetitors.Add(picked);
+                    laneCompetitors[laneNo]=picked;
                     barieraRemaining--;
                 }
 
-                var placeholder = laneCompetitors.FirstOrDefault()?.Category ?? competitors.First().Category;
+                var placeholder = laneCompetitors.FirstOrDefault(x=>x is not null)?.Category ?? competitors.First().Category;
                 heats.Add(new Heat(heatNo++, placeholder, laneCompetitors));
 
                 // cooldown window update (jak máš)
-                UpdateCooldownWindow(lastHeatsClubs, laneCompetitors, cooldownWindow);
+                UpdateCooldownWindow(lastHeatsClubs, heats[^1].Competitors, cooldownWindow);
             }
 
             return heats;
@@ -382,14 +382,14 @@ namespace StartList_Core.Scheduling
         //    return heats;
         //}
 
-        private bool ShouldSwitch(int brevnoRemaining, int barieraRemaining)
+        private bool ShouldSwitch(int brevnoRemaining, int barieraRemaining, int barieraLanes, int totalLanes)
         {
             if (barieraRemaining <= 0) return false;
 
             return _plan.SwitchRule switch
             {
-                SwitchRuleType.BarieraRemainingEqualsBrevnoRemainingDiv2
-                    => barieraRemaining >= (int)Math.Ceiling(brevnoRemaining / 2.0),
+                SwitchRuleType.BarieraRemainingEqualsBrevnoRemainingDivRemainingLanes
+                    => barieraRemaining >= (int)Math.Ceiling(brevnoRemaining / (double)(totalLanes-barieraLanes)),
                 _ => false
             };
         }

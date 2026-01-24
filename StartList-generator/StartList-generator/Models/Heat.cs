@@ -9,18 +9,21 @@ namespace StartList_Core.Models
         public int Number { get; init; }
         public Category Category { get; init; }
 
-        public IReadOnlyList<Competitor> Competitors { get; } = [];
+        public Competitor?[] Lanes { get; }
+
+        public IReadOnlyList<Competitor> Competitors => Lanes.Where(x => x is not null).Cast<Competitor>().ToList();
 
         public Heat()
         {
             Number = 0;
             Category = new Category();
+            Lanes = Array.Empty<Competitor?>();
         }
-        public Heat(int number, Category category, IReadOnlyList<Competitor> competitors)
+        public Heat(int number, Category category, Competitor?[] lanes)
         {
             Number = number;
             Category = category;
-            Competitors = competitors;
+            Lanes = lanes ?? throw new ArgumentNullException(nameof(lanes));
         }
     }
 }

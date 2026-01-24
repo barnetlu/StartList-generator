@@ -7,12 +7,19 @@ namespace IO_Adapters
 {
     public sealed class CategoryCatalog
     {
+        private readonly IReadOnlyList<Category> _all;
         private readonly Dictionary<string, Category> _byCode;
 
         public CategoryCatalog(IEnumerable<Category> categories)
         {
-            _byCode = categories.ToDictionary(c => c.Code, StringComparer.OrdinalIgnoreCase);
+            if (categories is null) throw new ArgumentNullException(nameof(categories));
+
+            _all = categories.ToList();
+
+            _byCode = _all.ToDictionary(c => c.Code, StringComparer.OrdinalIgnoreCase);
         }
+
+        public IReadOnlyList<Category> All => _all;
 
         public bool TryGetByCode(string code, out Category category)
             => _byCode.TryGetValue(code?.Trim() ?? "", out category!);

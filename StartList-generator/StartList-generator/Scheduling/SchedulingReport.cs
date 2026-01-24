@@ -19,5 +19,6 @@ namespace StartList_Core.Scheduling
 
         public List<string> Warnings { get; } = new();
         public List<string> Errors { get; } = new();
+        public List<string> SwitchEvents { get; internal set; }
     }
 }

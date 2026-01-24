@@ -14,21 +14,22 @@ namespace StartList_Core.Models
         public SubGroup SubGroup { get; }
         public ObstacleType ObstacleType { get; }
 
-        public int Lanes { get; }
+        public Discipline Discipline { get; }
         public bool SeedByPerformance { get; }
 
         public CategoryKey Key => new(AgeGroup, Sex, SubGroup);
 
-        public Category(string code, string name, SexEnum sex, AgeGroup ageGroup, SubGroup subGroup, ObstacleType obstacleType,  int lanes, bool seedByPerformance)
+        public Category(string name, SexEnum sex, AgeGroup ageGroup, SubGroup subGroup, ObstacleType obstacleType, Discipline discipline, bool seedByPerformance, Func<AgeGroup, SexEnum, SubGroup, string> codeBuilder)
         {
-            Code = code;
-            Name = name;
+            Name = name ?? throw new ArgumentNullException(nameof(name));
+            codeBuilder = codeBuilder ?? throw new ArgumentNullException(nameof(codeBuilder));
             Sex = sex;
             AgeGroup = ageGroup;
             SubGroup = subGroup;
             ObstacleType = obstacleType;
-            Lanes = lanes;
             SeedByPerformance = seedByPerformance;
+            Discipline = discipline;
+            Code = codeBuilder(ageGroup, sex, subGroup);
         }
 
         public Category()
@@ -39,7 +40,7 @@ namespace StartList_Core.Models
             AgeGroup = AgeGroup.Unknown;
             SubGroup = SubGroup.None;
             ObstacleType = ObstacleType.Crossbar;
-            Lanes = 0;
+            Discipline = Discipline.Run60;
             SeedByPerformance = false;
         }
 

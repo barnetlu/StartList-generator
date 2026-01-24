@@ -9,5 +9,6 @@ namespace IO_Adapters.SchedulerConfig
         public List<string> Patterns { get; set; } = new();
         public string Value { get; set; } = "";
         public int Priority { get; set; } = 0;
+        public bool ExactOnly { get; set; } = false;
     }
 }

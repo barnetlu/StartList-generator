@@ -7,6 +7,7 @@ namespace StartList_Core.Scheduling
 {
     public interface IScheduler
     {
+        public (IReadOnlyList<Heat> Heats, SchedulingReport Report) GenerateWithReport(IReadOnlyList<Competitor> competitors);
         IReadOnlyList<Heat> Generate(IReadOnlyList<Competitor> competitors);
     }
 }

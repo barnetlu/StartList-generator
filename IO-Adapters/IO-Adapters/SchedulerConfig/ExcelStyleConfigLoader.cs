@@ -56,13 +56,16 @@ namespace IO_Adapters.SchedulerConfig
             var laneColors = new Dictionary<int, (int r, int g, int b)>();
             foreach (var item in dto.LaneStartColors ?? new List<LaneColorDto>())
             {
-                if (item.Lane <= 0 || item.Lane > totalLanes)
-                    throw new InvalidOperationException($"Invalid lane={item.Lane} in excelStyle.laneStartColors (totalLanes={totalLanes}).");
+                if (item.Lane <= totalLanes)
+                {
+                    if (item.Lane <= 0)
+                        throw new InvalidOperationException($"Invalid lane={item.Lane} in excelStyle.laneStartColors (totalLanes={totalLanes}).");
 
-                if (laneColors.ContainsKey(item.Lane))
-                    throw new InvalidOperationException($"Duplicate lane start color mapping for lane {item.Lane}.");
+                    if (laneColors.ContainsKey(item.Lane))
+                        throw new InvalidOperationException($"Duplicate lane start color mapping for lane {item.Lane}.");
 
-                laneColors[item.Lane] = ParseRgb(item.Rgb, $"excelStyle.laneStartColors[lane={item.Lane}].rgb");
+                    laneColors[item.Lane] = ParseRgb(item.Rgb, $"excelStyle.laneStartColors[lane={item.Lane}].rgb");
+                }
             }
 
             // doplň defaulty pro všechny dráhy, aby writer nemusel řešit TryGetValue

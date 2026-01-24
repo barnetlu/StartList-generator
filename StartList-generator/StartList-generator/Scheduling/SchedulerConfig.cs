@@ -9,6 +9,6 @@ namespace StartList_Core.Scheduling
     {
         public IReadOnlyList<CategoryKey> CategoryOrder { get; init; } = Array.Empty<CategoryKey>();
         public SchedulingRules Rules { get; init; } = new SchedulingRules();
-        public TrackPlan TrackPlan { get; init; } = new(); // 👈 NOVÉ
+        public TrackPlan TrackPlan { get; init; } = new();
     }
 }

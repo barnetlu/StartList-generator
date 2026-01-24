@@ -64,16 +64,35 @@ namespace IO_Adapters.SchedulerConfig
             var trackPlan = new TrackPlan
             {
                 TotalLanes = Math.Max(1, tpDto.TotalLanes),
+
+                // 60m legacy
                 InitialBarieraLanes = Math.Max(0, tpDto.InitialBarieraLanes),
                 AfterSwitchBarieraLanes = Math.Max(0, tpDto.AfterSwitchBarieraLanes),
+
+                // 100m
+                InitialBariera170Lanes = Math.Max(0, tpDto.InitialBariera170Lanes),
+                AfterSwitchBariera170Lanes = Math.Max(0, tpDto.AfterSwitchBariera170Lanes),
+
+                InitialBariera200Lanes = Math.Max(0, tpDto.InitialBariera200Lanes),
+                AfterSwitchBariera200Lanes = Math.Max(0, tpDto.AfterSwitchBariera200Lanes),
+
                 SwitchRule = ParseEnum<SwitchRuleType>(tpDto.SwitchRule)
             };
 
-            // sanity: bariera lanes nesmí překročit total
+            // sanity: pro 60m kontroluj legacy (Barrier150)
             if (trackPlan.InitialBarieraLanes > trackPlan.TotalLanes)
                 throw new InvalidOperationException("initialBarieraLanes > totalLanes");
             if (trackPlan.AfterSwitchBarieraLanes > trackPlan.TotalLanes)
                 throw new InvalidOperationException("afterSwitchBarieraLanes > totalLanes");
+
+            // sanity: pro 100m kontroluj součet 170+200 (Crossbar = zbytek)
+            int init100 = trackPlan.InitialBariera170Lanes + trackPlan.InitialBariera200Lanes;
+            int after100 = trackPlan.AfterSwitchBariera170Lanes + trackPlan.AfterSwitchBariera200Lanes;
+
+            if (init100 > trackPlan.TotalLanes)
+                throw new InvalidOperationException("initialBariera170Lanes + initialBariera200Lanes > totalLanes");
+            if (after100 > trackPlan.TotalLanes)
+                throw new InvalidOperationException("afterSwitchBariera170Lanes + afterSwitchBariera200Lanes > totalLanes");
 
             return new StartList_Core.Scheduling.SchedulerConfig { CategoryOrder = order, Rules = rules, TrackPlan = trackPlan };
         }

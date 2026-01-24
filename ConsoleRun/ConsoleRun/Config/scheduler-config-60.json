@@ -34,7 +34,7 @@
     "totalLanes": 3,
     "initialBarieraLanes": 0,
     "afterSwitchBarieraLanes": 1,
-    "switchRule": "BarieraRemainingEqualsBrevnoRemainingDiv2"
+    "switchRule": "BarieraRemainingEqualsBrevnoRemainingDivRemainingLanes"
   },
   "excelStyle": {
     "categoryColors": [

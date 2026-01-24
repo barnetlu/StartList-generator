@@ -19,7 +19,7 @@ namespace IO_Adapters.Mapping
                 AgeGroup.Mladsi => "ML",
                 AgeGroup.Starsi => "ST",
                 AgeGroup.Dorost => "DOR",
-                AgeGroup.Dospeli => "DOS",
+                AgeGroup.Dospeli => "AD",
                 _ => "UNK"
             };
 

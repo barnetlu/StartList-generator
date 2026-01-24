@@ -5,7 +5,7 @@ using System.Text;
 
 namespace IO_Adapters.Interfaces
 {
-    internal interface IEntryReader
+    public interface IEntryReader
     {
         IReadOnlyList<Competitor> Read(string filePath);
     }
