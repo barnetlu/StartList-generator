@@ -34,8 +34,9 @@
     "totalLanes": 3,
     "initialBarieraLanes": 0,
     "afterSwitchBarieraLanes": 1,
-    "switchRule": "BarieraRemainingEqualsBrevnoRemainingDivRemainingLanes"
+    "switchRule": "Automatic"
   },
+  "startNumberMode": "PerHeat",
   "excelStyle": {
     "categoryColors": [
       {

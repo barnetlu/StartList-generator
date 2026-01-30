@@ -1,4 +1,5 @@
-﻿using System;
+﻿using StartList_Core.Models.Enums;
+using System;
 using System.Collections.Generic;
 using System.Text;
 

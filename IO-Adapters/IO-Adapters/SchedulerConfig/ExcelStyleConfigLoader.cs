@@ -1,4 +1,6 @@
-﻿using StartList_Core.Models;
+﻿using IO_Adapters.SchedulerConfig.DTO;
+using StartList_Core.Models;
+using StartList_Core.Models.Enums;
 using StartList_Core.Scheduling;
 using System;
 using System.Collections.Generic;

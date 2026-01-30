@@ -1,6 +1,4 @@
-﻿using IO_Adapters.Mapping;
-using StartList_Core.Models;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.Json;
@@ -8,6 +6,8 @@ using System.Text.Json.Serialization;
 
 namespace IO_Adapters.Mapping
 {
+    using global::IO_Adapters.Mapping.DTO;
+    using StartList_Core.Models.Enums;
     using System.Text.Json;
     using System.Text.Json.Serialization;
 

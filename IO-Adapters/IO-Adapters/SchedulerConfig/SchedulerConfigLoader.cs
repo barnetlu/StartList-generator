@@ -1,12 +1,15 @@
 ﻿using StartList_Core.Models;
 using System.Text.Json;
 using StartList_Core.Scheduling;
+using StartList_Core.Scheduling.Config;
+using StartList_Core.Models.Enums;
+using IO_Adapters.SchedulerConfig.DTO;
 
 namespace IO_Adapters.SchedulerConfig
 {
     public static class SchedulerConfigLoader
     {
-        public static StartList_Core.Scheduling.SchedulerConfig LoadSchedulerConfig(string path)
+        public static StartList_Core.Scheduling.Config.SchedulerConfig LoadSchedulerConfig(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
                 throw new ArgumentException("Scheduler config path is empty.", nameof(path));
@@ -93,8 +96,9 @@ namespace IO_Adapters.SchedulerConfig
                 throw new InvalidOperationException("initialBariera170Lanes + initialBariera200Lanes > totalLanes");
             if (after100 > trackPlan.TotalLanes)
                 throw new InvalidOperationException("afterSwitchBariera170Lanes + afterSwitchBariera200Lanes > totalLanes");
+            var startNoMode = ParseEnum<StartNumberMode>(dto.StartNumberMode);
 
-            return new StartList_Core.Scheduling.SchedulerConfig { CategoryOrder = order, Rules = rules, TrackPlan = trackPlan };
+            return new StartList_Core.Scheduling.Config.SchedulerConfig { CategoryOrder = order, Rules = rules, TrackPlan = trackPlan, StartNumberMode = startNoMode };
         }
     }
 }

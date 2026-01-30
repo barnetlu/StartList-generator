@@ -5,7 +5,9 @@ using IO_Adapters.Mapping;
 using IO_Adapters.Mapping.IO_Adapters.Mapping;
 using IO_Adapters.SchedulerConfig;
 using StartList_Core.Models;
+using StartList_Core.Models.Enums;
 using StartList_Core.Scheduling;
+using StartList_Core.Scheduling.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -99,7 +101,7 @@ namespace ConsoleRun
 
 
             var writer = new ExcelStartListWriter();
-            writer.Write(outputPath, heats, appCfg.Excel, report);
+            writer.Write(outputPath, heats, appCfg, report);
 
 
             Console.WriteLine($"Saved: {outputPath}");

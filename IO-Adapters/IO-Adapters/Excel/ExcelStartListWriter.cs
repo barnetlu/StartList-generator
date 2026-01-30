@@ -2,7 +2,8 @@
 using IO_Adapters.Interfaces;
 using IO_Adapters.SchedulerConfig;
 using StartList_Core.Models;
-using StartList_Core.Scheduling;
+using StartList_Core.Models.Enums;
+using StartList_Core.Scheduling.Report;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -11,22 +12,22 @@ namespace IO_Adapters.Excel
 {
     public sealed class ExcelStartListWriter : IStartListWriter
     {
-        public void Write(string outputPath, IReadOnlyList<Heat> heats, ExcelStyleConfig excelCfg, SchedulingReport? report = null)
+        public void Write(string outputPath, IReadOnlyList<Heat> heats, AppConfig cfg, SchedulingReport? report = null)
         {
             using var wb = new XLWorkbook();
-            WriteAllSheet(wb, heats, excelCfg);
-            WriteClubsSheet(wb, heats, excelCfg);          // NOVÉ
-            WriteResultsSheet(wb, heats, excelCfg);        // NOVÉ
+            WriteAllSheet(wb, heats, cfg);
+            WriteClubsSheet(wb, heats, cfg);          // NOVÉ
+            WriteResultsSheet(wb, heats, cfg);        // NOVÉ
             if (report != null)
                 WriteReportSheet(wb, report);
             wb.SaveAs(outputPath);
         }
 
-        private static void WriteAllSheet(XLWorkbook wb, IReadOnlyList<Heat> heats, ExcelStyleConfig style)
+        private static void WriteAllSheet(XLWorkbook wb, IReadOnlyList<Heat> heats, AppConfig style)
         {
             var ws = wb.Worksheets.Add("Startovka");
             int r = 1;
-            int totalLanes = style.TotalLanes;
+            int totalLanes = style.Excel.TotalLanes;
             int colsPerLane = 4;
 
             ws.Cell(r, 1).Value = "Startovka";
@@ -65,20 +66,19 @@ namespace IO_Adapters.Excel
             ws.Row(r).Height = 24.75;
             r++;
 
+            var startNos = BuildStartNumbers(heats, style.Scheduler.StartNumberMode);
+
             foreach (var h in heats.OrderBy(x => x.Number))
             {
                 var arranged = h.Lanes;
                 col = 1;
 
-                for (int lane = 1; lane <= style.TotalLanes; lane++)
+                for (int lane = 1; lane <= style.Excel.TotalLanes; lane++)
                 {
                     var nameCell = ws.Cell(r, col++);
                     var clubCell = ws.Cell(r, col++);
                     var startCell = ws.Cell(r, col++);
                     col++;
-
-                    startCell.Value = h.Number;
-                    ApplyFill(startCell, style.LaneStartColors[lane]);
 
                     var c = arranged[lane - 1];
                     if (c is null)
@@ -88,12 +88,22 @@ namespace IO_Adapters.Excel
                         continue;
                     }
 
+                    // FIX: Check for null before accessing startNos[c]
+                    if (startNos.TryGetValue(c, out var startNo))
+                    {
+                        startCell.Value = startNo;
+                        ApplyFill(startCell, style.Excel.LaneStartColors[lane]);
+                    }
+                    else
+                    {
+                        startCell.Value = "";
+                    }
                     nameCell.Value = $"{c.FirstName} {c.LastName}";
                     clubCell.Value = c.Club;
 
-                    var rgb = style.CategoryColors.TryGetValue(c.Category.Key, out var cc)
+                    var rgb = style.Excel.CategoryColors.TryGetValue(c.Category.Key, out var cc)
                         ? cc
-                        : style.DefaultCategoryColor;
+                        : style.Excel.DefaultCategoryColor;
 
                     ApplyFill(nameCell, rgb);
                     ApplyFill(clubCell, rgb);
@@ -183,12 +193,13 @@ namespace IO_Adapters.Excel
             return lanes;
         }
 
-        private static void WriteClubsSheet(XLWorkbook wb, IReadOnlyList<Heat> heats, ExcelStyleConfig excelCfg)
+        private static void WriteClubsSheet(XLWorkbook wb, IReadOnlyList<Heat> heats, AppConfig cfg)
         {
             var ws = wb.Worksheets.Add("SDH");
             int r = 1;
 
-            var startMap = BuildStartMap(heats, excelCfg.TotalLanes);
+            var startMap = BuildStartMap(heats, cfg.Excel.TotalLanes);
+            var startNos = BuildStartNumbers(heats, cfg.Scheduler.StartNumberMode);
 
             // vezmeme všechny závodníky z heats (unikátně)
             var all = heats.SelectMany(h => h.Competitors).Distinct().ToList();
@@ -223,18 +234,25 @@ namespace IO_Adapters.Excel
                     var startCell = ws.Cell(r, 1);
                     var nameCell = ws.Cell(r, 2);
 
-                    startCell.Value = s.heatNo == 0 ? "" : s.heatNo;
+                    if (startNos.TryGetValue(c, out var startNo))
+                    {
+                        startCell.Value = startNo;
+                    }
+                    else
+                    {
+                        startCell.Value = "";
+                    }
                     nameCell.Value = $"{c.FirstName} {c.LastName}";
 
                     // barvy: Start podle dráhy, Name podle kategorie
-                    var laneColor = excelCfg.LaneStartColors.TryGetValue(s.laneNo, out var lc)
+                    var laneColor = cfg.Excel.LaneStartColors.TryGetValue(s.laneNo, out var lc)
                         ? lc
-                        : excelCfg.DefaultLaneStartColor;
+                        : cfg.Excel.DefaultLaneStartColor;
                     ApplyFill(startCell, laneColor);
 
-                    var catColor = excelCfg.CategoryColors.TryGetValue(c.Category.Key, out var cc)
+                    var catColor = cfg.Excel.CategoryColors.TryGetValue(c.Category.Key, out var cc)
                         ? cc
-                        : excelCfg.DefaultCategoryColor;
+                        : cfg.Excel.DefaultCategoryColor;
                     ApplyFill(nameCell, catColor);
                     ws.Row(r).Height = 24.75;
                     r++;
@@ -250,11 +268,11 @@ namespace IO_Adapters.Excel
             ws.Columns().AdjustToContents(1, 60);
         }
 
-        private static void WriteResultsSheet(XLWorkbook wb, IReadOnlyList<Heat> heats, ExcelStyleConfig excelCfg)
+        private static void WriteResultsSheet(XLWorkbook wb, IReadOnlyList<Heat> heats, AppConfig cfg)
         {
             var ws = wb.Worksheets.Add("Zápis");
 
-            int totalLanes = excelCfg.TotalLanes;
+            int totalLanes = cfg.Excel.TotalLanes;
             int colsPerLane = 6;
 
             int r = 1;
@@ -294,6 +312,7 @@ namespace IO_Adapters.Excel
             ws.SheetView.FreezeRows(1);
             ws.Row(r).Height = 24.75;
             r++;
+            var startNos = BuildStartNumbers(heats, cfg.Scheduler.StartNumberMode);
 
             // ===== DATA: jeden heat = jeden řádek =====
             foreach (var h in heats.OrderBy(x => x.Number))
@@ -310,12 +329,9 @@ namespace IO_Adapters.Excel
                     var noteCell = ws.Cell(r, col++);
                     col++;
 
-                    // # (heat number) + barva dráhy
-                    startCell.Value = h.Number;
-
-                    var laneColor = excelCfg.LaneStartColors.TryGetValue(lane, out var lc)
+                    var laneColor = cfg.Excel.LaneStartColors.TryGetValue(lane, out var lc)
                         ? lc
-                        : excelCfg.DefaultLaneStartColor;
+                        : cfg.Excel.DefaultLaneStartColor;
                     ApplyFill(startCell, laneColor);
 
                     var c = arranged[lane - 1];
@@ -328,13 +344,24 @@ namespace IO_Adapters.Excel
                         continue;
                     }
 
+                    // FIX: Check for null before accessing startNos[c]
+                    if (startNos.TryGetValue(c, out var startNo))
+                    {
+                        startCell.Value = startNo;
+                        ApplyFill(startCell, cfg.Excel.LaneStartColors[lane]);
+                    }
+                    else
+                    {
+                        startCell.Value = "";
+                    }
+
                     // Jméno + SDH (barva podle kategorie)
                     nameCell.Value = $"{c.FirstName} {c.LastName}";
                     clubCell.Value = c.Club;
 
-                    var catColor = excelCfg.CategoryColors.TryGetValue(c.Category.Key, out var cc)
+                    var catColor = cfg.Excel.CategoryColors.TryGetValue(c.Category.Key, out var cc)
                         ? cc
-                        : excelCfg.DefaultCategoryColor;
+                        : cfg.Excel.DefaultCategoryColor;
 
                     ApplyFill(nameCell, catColor);
                     ApplyFill(clubCell, catColor);
@@ -429,6 +456,41 @@ namespace IO_Adapters.Excel
 
             ws.SheetView.FreezeRows(1);
             ws.Columns().AdjustToContents(1, 100);
+        }
+
+        public static Dictionary<Competitor, int> BuildStartNumbers(IReadOnlyList<Heat> heats, StartNumberMode mode)
+        {
+            var map = new Dictionary<Competitor, int>(SchedulerConfig.ReferenceEqualityComparer.Instance);
+
+            if (mode == StartNumberMode.PerHeat)
+            {
+                foreach (var h in heats)
+                {
+                    foreach (var c in h.Competitors)
+                        map[c] = h.Number;
+                }
+                return map;
+            }
+
+            // GlobalSequential
+            int n = 1;
+
+            // pořadí: heat 1..N, v heatu lane 1..L pokud existují, jinak pořadí Competitors
+            foreach (var h in heats.OrderBy(x => x.Number))
+            {
+                IEnumerable<Competitor?> seq = h.Lanes is not null
+                    ? h.Lanes
+                    : h.Competitors.Cast<Competitor?>();
+
+                foreach (var c in seq)
+                {
+                    if (c is null) continue;
+                    if (!map.ContainsKey(c))
+                        map[c] = n++;
+                }
+            }
+
+            return map;
         }
 
         private static string SanitizeSheetName(string name)

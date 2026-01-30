@@ -1,5 +1,5 @@
 ﻿using IO_Adapters.Mapping;
-using StartList_Core.Models;
+using StartList_Core.Models.Enums;
 using System;
 using System.Collections.Generic;
 using System.Text;

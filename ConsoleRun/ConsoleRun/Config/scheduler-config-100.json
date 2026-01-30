@@ -53,6 +53,7 @@
     "afterSwitchBarrier200Lanes": 1,
     "switchRule": "Automatic"
   },
+  "startNumberMode": "GlobalSequential",
   "excelStyle": {
     "categoryColors": [
       {
