@@ -16,11 +16,24 @@ namespace IO_Adapters.Excel
         {
             using var wb = new XLWorkbook();
             WriteAllSheet(wb, heats, cfg);
-            WriteClubsSheet(wb, heats, cfg);          // NOVÉ
-            WriteResultsSheet(wb, heats, cfg);        // NOVÉ
+            WriteClubsSheet(wb, heats, cfg);
+            WriteResultsSheet(wb, heats, cfg);
             if (report != null)
                 WriteReportSheet(wb, report);
             wb.SaveAs(outputPath);
+        }
+
+        public byte[] WriteToBytes(IReadOnlyList<Heat> heats, AppConfig cfg, SchedulingReport? report = null)
+        {
+            using var wb = new XLWorkbook();
+            WriteAllSheet(wb, heats, cfg);
+            WriteClubsSheet(wb, heats, cfg);
+            WriteResultsSheet(wb, heats, cfg);
+            if (report != null)
+                WriteReportSheet(wb, report);
+            using var ms = new MemoryStream();
+            wb.SaveAs(ms);
+            return ms.ToArray();
         }
 
         private static void WriteAllSheet(XLWorkbook wb, IReadOnlyList<Heat> heats, AppConfig style)

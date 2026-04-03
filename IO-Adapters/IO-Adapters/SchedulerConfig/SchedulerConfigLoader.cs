@@ -17,7 +17,11 @@ namespace IO_Adapters.SchedulerConfig
             if (!File.Exists(path))
                 throw new FileNotFoundException("Scheduler config JSON not found.", path);
 
-            var json = File.ReadAllText(path);
+            return LoadFromJson(File.ReadAllText(path));
+        }
+
+        public static StartList_Core.Scheduling.Config.SchedulerConfig LoadFromJson(string json)
+        {
 
             var dto = JsonSerializer.Deserialize<SchedulerConfigDto>(json, new JsonSerializerOptions
             {

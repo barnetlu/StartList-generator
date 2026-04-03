@@ -14,11 +14,22 @@ var ctx = choice == 1 ? Runners.BuildRun60() : Runners.BuildRun100();
 
 
 
-var inputDir = Ask("Složka s přihláškami");
-var outputPath = Ask("Výstupní soubor", $@".\Startovka_{(choice == 1 ? "60" : "100")}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.xlsx");
+var discipline = choice == 1 ? "60" : "100";
+var defaultOutput = $@".\Startovka_{discipline}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.xlsx";
 
+var sourceChoice = AskChoice("Zdroj přihlášek:", "Složka s xlsx přihláškami", "Jeden soubor (online registrace)");
+var outputPath = Ask("Výstupní soubor", defaultOutput);
 
-Runners.Run(ctx, inputDir, outputPath);
+if (sourceChoice == 1)
+{
+    var inputDir = Ask("Složka s přihláškami");
+    Runners.Run(ctx, inputDir, outputPath);
+}
+else
+{
+    var filePath = Ask("Cesta k souboru");
+    Runners.RunSingleFile(ctx, filePath, outputPath);
+}
 
 static string Ask(string label, string? @default = null)
 {

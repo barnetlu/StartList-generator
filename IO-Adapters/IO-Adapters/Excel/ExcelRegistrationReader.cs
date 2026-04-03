@@ -38,9 +38,14 @@ namespace IO_Adapters.Excel
         {
             if (!File.Exists(filePath))
                 throw new FileNotFoundException("Excel file not found.", filePath);
-            try
+            using var stream = File.OpenRead(filePath);
+            return ReadFromStream(stream);
+        }
+
+        public IReadOnlyList<Competitor> ReadFromStream(Stream stream)
+        {
             {
-                using var wb = new XLWorkbook(filePath);
+                using var wb = new XLWorkbook(stream);
                 var ws = _sheetName is null ? wb.Worksheets.First() : wb.Worksheet(_sheetName);
 
                 // 1) hlavičkové údaje
@@ -83,12 +88,21 @@ namespace IO_Adapters.Excel
                     if (string.IsNullOrWhiteSpace(fullName))
                         continue;
 
-                    var (firstName, lastName) = SplitName(fullName);
+                    string firstName, lastName;
+                    if (map.LastNameCol.HasValue)
+                    {
+                        firstName = fullName;
+                        lastName = ws.Cell(r, map.LastNameCol.Value).GetString().Trim();
+                    }
+                    else
+                    {
+                        (firstName, lastName) = SplitName(fullName);
+                    }
 
-                    // pokud v hlavičce není SDH, může být prázdné – ale je to zásadní
-                    var clubEffective = club;
-                    if (string.IsNullOrWhiteSpace(clubEffective))
-                        clubEffective = ""; // klidně nech prázdné, nebo hoď exception podle tvé preference
+                    // Klub: preferuj sloupec Organizace, fallback na hlavičku SDH
+                    var clubEffective = map.OrganizaceCol.HasValue
+                        ? ws.Cell(r, map.OrganizaceCol.Value).GetString().Trim()
+                        : club ?? "";
 
                     // birth year
                     int? birthYear = null;
@@ -156,12 +170,6 @@ namespace IO_Adapters.Excel
 
                 return result;
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"ERROR při čtení {filePath}");
-                Console.WriteLine(ex.ToString()); // <-- důležité
-                return new List<Competitor>();
-            }
         }
 
         // ----------------- helpers -----------------
@@ -188,16 +196,18 @@ namespace IO_Adapters.Excel
         private sealed record ColMap(
             int OrderCol,
             int NameCol,
+            int? LastNameCol,
             int? BirthCol,
             int? CategoryCol,
             int? OshCol,
+            int? OrganizaceCol,
             int LeftCol,
             int RightCol
         );
 
         private static ColMap BuildColumnMap(IXLWorksheet ws, int headerRow)
         {
-            int? orderCol = null, nameCol = null, birthCol = null, catCol = null, oshCol = null;
+            int? orderCol = null, nameCol = null, lastNameCol = null, birthCol = null, catCol = null, oshCol = null, organizaceCol = null;
 
             var used = ws.Row(headerRow).CellsUsed().ToList();
             foreach (var cell in used)
@@ -209,9 +219,11 @@ namespace IO_Adapters.Excel
 
                 if (t.Contains("por")) orderCol = c;
                 else if (t.Contains("jmeno") || t.Contains("jméno")) nameCol = c;
+                else if (t.Contains("prijmeni")) lastNameCol = c;
                 else if (t.Contains("datum") && (t.Contains("naro") || t.Contains("naroz"))) birthCol = c;
                 else if (t.Contains("kategorie")) catCol = c;
                 else if (t == "osh" || t.Contains("osh")) oshCol = c;
+                else if (t.Contains("organizace")) organizaceCol = c;
             }
 
             if (orderCol is null || nameCol is null)
@@ -220,7 +232,7 @@ namespace IO_Adapters.Excel
             int left = orderCol.Value;
             int right = oshCol ?? catCol ?? used.Max(c => c.Address.ColumnNumber);
 
-            return new ColMap(orderCol.Value, nameCol.Value, birthCol, catCol, oshCol, left, right);
+            return new ColMap(orderCol.Value, nameCol.Value, lastNameCol, birthCol, catCol, oshCol, organizaceCol, left, right);
         }
 
         private static int FindTableLastRowByBorders(IXLWorksheet ws, int firstDataRow, int leftCol, int rightCol, int maxScanRows = 200)

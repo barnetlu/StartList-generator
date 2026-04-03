@@ -36,7 +36,7 @@ namespace IO_Adapters.Mapping
         /// Maps category text and validates group against birth year using AgeRules.
         /// If mismatch occurs, it is resolved immediately via resolver.
         /// </summary>
-        public (AgeGroup Group, SexEnum Sex, SubGroup Subgroup) Map(string raw, int? birthYear, CompetitorDraft draft, IInteractiveResolver resolver, bool resolveWhenGroupUnknown = true)
+        public (AgeGroup Group, SexEnum Sex, SubGroup Subgroup) Map(string raw, int? birthYear, CompetitorDraft draft, IInteractiveResolver resolver)
         {
             // 1) text mapping
             var (group, sex, sub) = Map(raw);
@@ -56,15 +56,19 @@ namespace IO_Adapters.Mapping
 
 
             // 4) mismatch handling
-            bool canCompare = group != AgeGroup.Unknown || resolveWhenGroupUnknown;
-
-
-            if (canCompare && (expected.Group != group || expected.SubGroup != sub))
+            if (group == AgeGroup.Unknown)
+            {
+                // Text nic neřekl – automaticky použij skupinu z roku narození
+                group = expected.Group;
+                sub = _cfg.NoSubGroupIfGroup.Contains(group) ? SubGroup.None : expected.SubGroup;
+                if (_cfg.NoSexIfGroup.Contains(group))
+                    sex = SexEnum.Mixed;
+            }
+            else if (expected.Group != group || expected.SubGroup != sub)
             {
                 var (g2, s2) = resolver.ResolveAgeGroupMismatch(draft, group, sub, expected.Group, expected.SubGroup, _cfg.NoSubGroupIfGroup);
                 group = g2;
                 sub = s2;
-
 
                 // po změně group/sub znovu aplikuj noSex/noSub pravidla
                 if (_cfg.NoSexIfGroup.Contains(group))

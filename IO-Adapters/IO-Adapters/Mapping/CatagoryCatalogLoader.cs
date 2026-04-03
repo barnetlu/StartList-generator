@@ -17,7 +17,13 @@ namespace IO_Adapters.Mapping
             if (!File.Exists(path))
                 throw new FileNotFoundException(path);
 
-            var json = File.ReadAllText(path);
+            return LoadFromJson(File.ReadAllText(path), codeBuilder, discipline);
+        }
+
+        public static CategoryCatalog LoadFromJson(
+            string json,
+            Func<AgeGroup, SexEnum, SubGroup, string> codeBuilder, Discipline? discipline)
+        {
 
             var dto = JsonSerializer.Deserialize<CategoryCatalogDto>(
                 json,

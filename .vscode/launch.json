@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "StartList - ConsoleRun",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/ConsoleRun/ConsoleRun/bin/Debug/net10.0/ConsoleRun.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/ConsoleRun/ConsoleRun",
+            "console": "integratedTerminal",
+            "stopAtEntry": false,
+            "env": {
+                "PATH": "/usr/local/share/dotnet:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+            }
+        }
+    ]
+}

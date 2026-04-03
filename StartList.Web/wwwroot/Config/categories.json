@@ -1,0 +1,121 @@
+{
+  "categories": [
+    {
+      "name": "Přípravka",
+      "sex": "Mixed",
+      "ageGroup": "Pripravka",
+      "subGroup": "None",
+      "obstacleType": "Crossbar",
+      "discipline": "Run60",
+      "seedByPerformance": false
+    },
+    {
+      "name": "Mladší žáci – dívky",
+      "sex": "Female",
+      "ageGroup": "Mladsi",
+      "subGroup": "None",
+      "obstacleType": "Crossbar",
+      "discipline": "Run60",
+      "seedByPerformance": false
+    },
+    {
+      "name": "Mladší žáci – chlapci",
+      "sex": "Male",
+      "ageGroup": "Mladsi",
+      "subGroup": "None",
+      "obstacleType": "Crossbar",
+      "discipline": "Run60",
+      "seedByPerformance": false
+    },
+    {
+      "name": "Starší žáci – dívky",
+      "sex": "Female",
+      "ageGroup": "Starsi",
+      "subGroup": "None",
+      "obstacleType": "Crossbar",
+      "discipline": "Run60",
+      "seedByPerformance": false
+    },
+    {
+      "name": "Starší žáci – chlapci",
+      "sex": "Male",
+      "ageGroup": "Starsi",
+      "subGroup": "None",
+      "obstacleType": "Barrier150",
+      "discipline": "Run60",
+      "seedByPerformance": false
+    },
+    {
+      "name": "Dorostenky - mladší",
+      "sex": "Female",
+      "ageGroup": "Dorost",
+      "subGroup": "Mladsi",
+      "obstacleType": "Crossbar",
+      "discipline": "Run100",
+      "seedByPerformance": false
+    },
+    {
+      "name": "Dorostenky - střední",
+      "sex": "Female",
+      "ageGroup": "Dorost",
+      "subGroup": "Stredni",
+      "obstacleType": "Crossbar",
+      "discipline": "Run100",
+      "seedByPerformance": false
+    },
+    {
+      "name": "Dorostenky - starsi",
+      "sex": "Female",
+      "ageGroup": "Dorost",
+      "subGroup": "Starsi",
+      "obstacleType": "Crossbar",
+      "discipline": "Run100",
+      "seedByPerformance": false
+    },
+    {
+      "name": "Ženy",
+      "sex": "Female",
+      "ageGroup": "Dospeli",
+      "subGroup": "None",
+      "obstacleType": "Crossbar",
+      "discipline": "Run100",
+      "seedByPerformance": false
+    },
+    {
+      "name": "Dorostenci - mladší",
+      "sex": "Male",
+      "ageGroup": "Dorost",
+      "subGroup": "Mladsi",
+      "obstacleType": "Barrier170",
+      "discipline": "Run100",
+      "seedByPerformance": false
+    },
+    {
+      "name": "Dorostenci - střední",
+      "sex": "Male",
+      "ageGroup": "Dorost",
+      "subGroup": "Stredni",
+      "obstacleType": "Barrier170",
+      "discipline": "Run100",
+      "seedByPerformance": false
+    },
+    {
+      "name": "Dorostenci - starsi",
+      "sex": "Male",
+      "ageGroup": "Dorost",
+      "subGroup": "Starsi",
+      "obstacleType": "Barrier200",
+      "discipline": "Run100",
+      "seedByPerformance": false
+    },
+    {
+      "name": "Muži",
+      "sex": "Male",
+      "ageGroup": "Dospeli",
+      "subGroup": "None",
+      "obstacleType": "Barrier200",
+      "discipline": "Run100",
+      "seedByPerformance": false
+    }
+  ]
+}

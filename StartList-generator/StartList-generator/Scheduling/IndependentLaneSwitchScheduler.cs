@@ -295,42 +295,33 @@ namespace StartList_Core.Scheduling
                 var usedClubsThisHeat = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 // ---- Switch decision (per lane) ----
+                // Přepínáme každou dráhu kde laneObstacle != laneTarget ve správném heatu.
+                // Funguje oběma směry: switchON (crossbar→barrier) i switchOFF (barrier→crossbar).
                 if (_plan.SwitchRule != SwitchRuleType.Manual)
                 {
-                    if(heatNo == switchPlan.Switch150Heat)
+                    for (int l = 0; l < _plan.TotalLanes; l++)
                     {
-                        for (int l = 0; l < _plan.TotalLanes; l++)
+                        if (laneObstacle[l] == laneTarget[l]) continue;
+
+                        int? switchHeat = laneObstacle[l] switch
                         {
-                            if (laneTarget[l].Equals(ObstacleType.Barrier150))
+                            ObstacleType.Barrier150 => switchPlan.Switch150Heat, // switchOFF: barrier→crossbar
+                            ObstacleType.Barrier170 => switchPlan.Switch170Heat,
+                            ObstacleType.Barrier200 => switchPlan.Switch200Heat,
+                            _ => laneTarget[l] switch                             // switchON: crossbar→barrier
                             {
-                                laneObstacle[l] = laneTarget[l];
-                                laneSwitched[l] = true;
-                                report.SwitchAtHeat ??= heatNo;
+                                ObstacleType.Barrier150 => switchPlan.Switch150Heat,
+                                ObstacleType.Barrier170 => switchPlan.Switch170Heat,
+                                ObstacleType.Barrier200 => switchPlan.Switch200Heat,
+                                _ => null
                             }
-                        }
-                    }
-                    if (heatNo == switchPlan.Switch170Heat)
-                    {
-                        for (int l = 0; l < _plan.TotalLanes; l++)
+                        };
+
+                        if (heatNo == switchHeat)
                         {
-                            if (laneTarget[l].Equals(ObstacleType.Barrier170))
-                            {
-                                laneObstacle[l] = laneTarget[l];
-                                laneSwitched[l] = true;
-                                report.SwitchAtHeat ??= heatNo;
-                            }
-                        }
-                    }
-                    if (heatNo == switchPlan.Switch200Heat)
-                    {
-                        for (int l = 0; l < _plan.TotalLanes; l++)
-                        {
-                            if (laneTarget[l].Equals(ObstacleType.Barrier200))
-                            {
-                                laneObstacle[l] = laneTarget[l];
-                                laneSwitched[l] = true;
-                                report.SwitchAtHeat ??= heatNo;
-                            }
+                            laneObstacle[l] = laneTarget[l];
+                            laneSwitched[l] = true;
+                            report.SwitchAtHeat ??= heatNo;
                         }
                     }
                 }
@@ -504,56 +495,74 @@ namespace StartList_Core.Scheduling
         {
             int L = plan.TotalLanes;
 
-            int S150 = 0, S170 = 0, S200 = 0;
+            // Počty bariérových drah před a po přepnutí
+            int init150 = is60Legacy ? Math.Clamp(plan.InitialBarieraLanes, 0, L) : 0;
+            int fin150  = is60Legacy ? Math.Clamp(plan.AfterSwitchBarieraLanes, 0, L) : 0;
 
-            if (is60Legacy)
-                S150 = Math.Clamp(plan.AfterSwitchBarieraLanes, 0, L);
-            else
-            {
-                S170 = Math.Clamp(plan.AfterSwitchBariera170Lanes, 0, L);
-                S200 = Math.Clamp(plan.AfterSwitchBariera200Lanes, 0, L - S170);
-            }
+            int init170 = !is60Legacy ? Math.Clamp(plan.InitialBariera170Lanes, 0, L) : 0;
+            int fin170  = !is60Legacy ? Math.Clamp(plan.AfterSwitchBariera170Lanes, 0, L) : 0;
 
-            int H150 = (S150 > 0) ? CeilDiv(rem150, S150) : 0;
-            int H170 = (S170 > 0) ? CeilDiv(rem170, S170) : 0;
-            int H200 = (S200 > 0) ? CeilDiv(rem200, S200) : 0;
+            int init200 = !is60Legacy ? Math.Clamp(plan.InitialBariera200Lanes, 0, L - init170) : 0;
+            int fin200  = !is60Legacy ? Math.Clamp(plan.AfterSwitchBariera200Lanes, 0, L - fin170) : 0;
 
-            // Lower bound - ideální svět (vše jede paralelně)
+            // Počet bariérových drah které jsou aktivní PŘED přepnutím (pro výpočet počtu heatů s bariérou)
+            // switchON = přidáváme bariéru (fin > init) → bariéra běží NA KONCI
+            // switchOFF = odebíráme bariéru (init > fin) → bariéra běží NA ZAČÁTKU
+            bool switchOn150  = fin150 >= init150;
+            bool switchOn170  = fin170 >= init170;
+            bool switchOn200  = fin200 >= init200;
+
+            int activeLanes150 = switchOn150 ? fin150  : init150;
+            int activeLanes170 = switchOn170 ? fin170  : init170;
+            int activeLanes200 = switchOn200 ? fin200  : init200;
+
+            int H150 = (activeLanes150 > 0) ? CeilDiv(rem150, activeLanes150) : 0;
+            int H170 = (activeLanes170 > 0) ? CeilDiv(rem170, activeLanes170) : 0;
+            int H200 = (activeLanes200 > 0) ? CeilDiv(rem200, activeLanes200) : 0;
+
+            // Lower bound
             int T = CeilDiv(remCross + rem150 + rem170 + rem200, L);
             T = Math.Max(T, Math.Max(H150, Math.Max(H170, H200)));
             if (T < 1) T = 1;
 
-            // Najdi nejmenší T, které dá dost crossbar kapacity po odečtení bariér "od konce"
+            // Najdi nejmenší T s dostatečnou crossbar kapacitou
             while (true)
             {
                 int crossCap = 0;
 
-                int sw150 = (H150 > 0) ? (T - H150 + 1) : int.MaxValue;
-                int sw170 = (H170 > 0) ? (T - H170 + 1) : int.MaxValue;
-                int sw200 = (H200 > 0) ? (T - H200 + 1) : int.MaxValue;
+                // switchON:  switch nastane v heatu (T - H + 1), bariéra aktivní OD tohoto heatu
+                // switchOFF: switch nastane v heatu (H + 1),     bariéra aktivní DO tohoto heatu (exkluzivně)
+                int sw150 = (H150 > 0) ? (switchOn150  ? (T - H150 + 1) : (H150 + 1)) : int.MaxValue;
+                int sw170 = (H170 > 0) ? (switchOn170  ? (T - H170 + 1) : (H170 + 1)) : int.MaxValue;
+                int sw200 = (H200 > 0) ? (switchOn200  ? (T - H200 + 1) : (H200 + 1)) : int.MaxValue;
 
                 for (int h = 1; h <= T; h++)
                 {
-                    int switched = 0;
-                    if (h >= sw150) switched += S150;
-                    if (h >= sw170) switched += S170;
-                    if (h >= sw200) switched += S200;
+                    // Spočítej kolik bariérových drah je aktivních v tomto heatu
+                    int barrier = 0;
+                    if (switchOn150)  barrier += (h >= sw150) ? fin150  : init150;
+                    else              barrier += (h <  sw150) ? init150 : fin150;
 
-                    int crossLanes = Math.Max(0, L - switched);
-                    crossCap += crossLanes;
+                    if (switchOn170)  barrier += (h >= sw170) ? fin170  : init170;
+                    else              barrier += (h <  sw170) ? init170 : fin170;
+
+                    if (switchOn200)  barrier += (h >= sw200) ? fin200  : init200;
+                    else              barrier += (h <  sw200) ? init200 : fin200;
+
+                    crossCap += Math.Max(0, L - barrier);
                 }
 
                 if (crossCap >= remCross)
                 {
                     return new SwitchPlan(
                         TotalHeats: T,
-                        Switch150Heat: (H150 > 0) ? (T - H150 + 1) : null,
-                        Switch170Heat: (H170 > 0) ? (T - H170 + 1) : null,
-                        Switch200Heat: (H200 > 0) ? (T - H200 + 1) : null
+                        Switch150Heat: (H150 > 0) ? sw150 : null,
+                        Switch170Heat: (H170 > 0) ? sw170 : null,
+                        Switch200Heat: (H200 > 0) ? sw200 : null
                     );
                 }
 
-                T++; // přidej heat a zkus znovu
+                T++;
             }
         }
         private static int CeilDiv(int a, int b) => (b <= 0) ? 0 : (a + b - 1) / b;

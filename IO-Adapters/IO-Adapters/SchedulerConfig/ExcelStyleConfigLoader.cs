@@ -17,10 +17,14 @@ namespace IO_Adapters.SchedulerConfig
                 throw new ArgumentException("Config path is empty.", nameof(jsonPath));
             if (!File.Exists(jsonPath))
                 throw new FileNotFoundException("Config JSON not found.", jsonPath);
+
+            return LoadFromJson(File.ReadAllText(jsonPath), totalLanes);
+        }
+
+        public static ExcelStyleConfig LoadFromJson(string json, int totalLanes)
+        {
             if (totalLanes <= 0)
                 throw new ArgumentOutOfRangeException(nameof(totalLanes), "totalLanes must be > 0.");
-
-            var json = File.ReadAllText(jsonPath);
 
             // načteme jen excelStyle část (může být v tom samém jsonu jako scheduler config)
             var root = JsonSerializer.Deserialize<ExcelStyleRootDto>(json, new JsonSerializerOptions

@@ -68,7 +68,11 @@ namespace IO_Adapters.Mapping
                 if (!File.Exists(jsonPath))
                     throw new FileNotFoundException("Mapping config JSON not found.", jsonPath);
 
-                var json = File.ReadAllText(jsonPath);
+                return LoadFromJson(File.ReadAllText(jsonPath));
+            }
+
+            public static CategoryMappingConfig LoadFromJson(string json)
+            {
 
                 var dto = JsonSerializer.Deserialize<MappingConfigDto>(
                     json,

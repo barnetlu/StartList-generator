@@ -2,4 +2,5 @@
   <Project Path="ConsoleRun/ConsoleRun/ConsoleRun.csproj" />
   <Project Path="IO-Adapters/IO-Adapters/IO-Adapters.csproj" />
   <Project Path="StartList-generator/StartList-generator/StartList.Core.csproj" />
+  <Project Path="StartList.Web/StartList.Web.csproj" />
 </Solution>

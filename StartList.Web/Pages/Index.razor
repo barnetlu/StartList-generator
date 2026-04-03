@@ -1,0 +1,1019 @@
+@page "/"
+@inject HttpClient Http
+@inject IJSRuntime JS
+@using IO_Adapters
+@using IO_Adapters.Mapping
+@using IO_Adapters.Mapping.IO_Adapters.Mapping
+@using IO_Adapters.Interfaces
+@using IO_Adapters.Excel
+@using IO_Adapters.SchedulerConfig
+@using StartList_Core.Models
+@using StartList_Core.Models.Enums
+@using StartList_Core.Scheduling
+@using StartList_Core.Scheduling.Config
+@using StartList_Core.Scheduling.Report
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Text
+
+<style>
+    .app-header {
+        background: #0d6efd;
+        color: #fff;
+        text-align: center;
+        padding: 10px 0;
+        font-size: 1.2rem;
+        font-weight: 600;
+        letter-spacing: .03em;
+        flex-shrink: 0;
+    }
+    .layout {
+        display: flex;
+        height: calc(100vh - 46px);
+        gap: 0;
+    }
+    .panel-left {
+        width: 350px;
+        min-width: 290px;
+        flex-shrink: 0;
+        overflow-y: auto;
+        padding: 14px 14px 14px 16px;
+        border-right: 2px solid #dee2e6;
+        background: #eef2f7;
+    }
+    .panel-right {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+        background: #fff;
+    }
+    .section-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        color: #495057;
+        margin-top: 14px;
+        margin-bottom: 6px;
+        border-bottom: 1px solid #ced4da;
+        padding-bottom: 3px;
+    }
+    .section-label:first-child {
+        margin-top: 0;
+    }
+    .cat-item {
+        padding: 5px 10px;
+        margin: 2px 0;
+        border: 1px solid #dee2e6;
+        background: #fff;
+        border-radius: 4px;
+        cursor: grab;
+        user-select: none;
+        font-size: 0.875rem;
+    }
+    .cat-item.drag-over {
+        border-color: #0d6efd;
+        background: #e8f0fe;
+    }
+    .heat-cell {
+        min-width: 140px;
+        padding: 6px 8px;
+        vertical-align: top;
+    }
+    .heat-cell.drag-over {
+        background: #cfe2ff !important;
+    }
+    .lane-swatch {
+        width: 22px;
+        height: 22px;
+        border: 1px solid #adb5bd;
+        border-radius: 3px;
+        display: inline-block;
+        vertical-align: middle;
+    }
+    input[type=number].num-short {
+        width: 65px;
+    }
+</style>
+
+<div class="app-header">Generátor startovek</div>
+
+<div class="layout">
+
+    <!-- LEVÝ PANEL – ovládání -->
+    <div class="panel-left">
+
+        <div class="section-label">Disciplína</div>
+        <select class="form-select form-select-sm mb-3" @bind="_discipline">
+            <option value="100">100m překážky</option>
+            <option value="60">60m překážky</option>
+        </select>
+
+        <div class="section-label">Přihlášky</div>
+        <InputFile OnChange="SouborVybran" accept=".csv,.txt,.xlsx" multiple class="form-control form-control-sm mb-2" />
+        @if (_pendingFiles.Count > 0)
+        {
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <span class="badge bg-secondary">@_pendingFiles.Count souborů</span>
+                <button class="btn btn-sm btn-primary" @onclick="NactiSoubory">Načíst přihlášky</button>
+            </div>
+        }
+        @if (_status != null)
+        {
+            <div class="alert alert-info py-1 px-2 mb-2" style="font-size:0.8rem">@_status</div>
+        }
+
+        @if (_competitors != null)
+        {
+            <div class="section-label">Konfigurace tratě</div>
+            <div class="mb-3">
+                <div class="d-flex align-items-center mb-2 gap-2">
+                    <label class="col-form-label col-form-label-sm" style="width:200px">Počet drah:</label>
+                    <input type="number" class="form-control form-control-sm num-short"
+                           value="@_tp.TotalLanes" min="1" max="10"
+                           @onchange="@(e => { _tp.TotalLanes = int.Parse(e.Value!.ToString()!); InitLaneColors(_tp.TotalLanes); })" />
+                </div>
+                @if (_discipline == "100")
+                {
+                    <div class="d-flex align-items-center mb-2 gap-2">
+                        <label class="col-form-label col-form-label-sm" style="width:200px">170 cm před přepnutím:</label>
+                        <input type="number" class="form-control form-control-sm num-short" @bind="_tp.InitialBariera170Lanes" min="0" max="@_tp.TotalLanes" />
+                    </div>
+                    <div class="d-flex align-items-center mb-2 gap-2">
+                        <label class="col-form-label col-form-label-sm" style="width:200px">200 cm před přepnutím:</label>
+                        <input type="number" class="form-control form-control-sm num-short" @bind="_tp.InitialBariera200Lanes" min="0" max="@_tp.TotalLanes" />
+                    </div>
+                    <div class="d-flex align-items-center mb-2 gap-2">
+                        <label class="col-form-label col-form-label-sm" style="width:200px">170 cm po přepnutí:</label>
+                        <input type="number" class="form-control form-control-sm num-short" @bind="_tp.AfterSwitchBariera170Lanes" min="0" max="@_tp.TotalLanes" />
+                    </div>
+                    <div class="d-flex align-items-center mb-2 gap-2">
+                        <label class="col-form-label col-form-label-sm" style="width:200px">200 cm po přepnutí:</label>
+                        <input type="number" class="form-control form-control-sm num-short" @bind="_tp.AfterSwitchBariera200Lanes" min="0" max="@_tp.TotalLanes" />
+                    </div>
+                }
+                else
+                {
+                    <div class="d-flex align-items-center mb-2 gap-2">
+                        <label class="col-form-label col-form-label-sm" style="width:200px">Bariér před přepnutím:</label>
+                        <input type="number" class="form-control form-control-sm num-short" @bind="_tp.InitialBarieraLanes" min="0" max="@_tp.TotalLanes" />
+                    </div>
+                    <div class="d-flex align-items-center mb-2 gap-2">
+                        <label class="col-form-label col-form-label-sm" style="width:200px">Bariér po přepnutí:</label>
+                        <input type="number" class="form-control form-control-sm num-short" @bind="_tp.AfterSwitchBarieraLanes" min="0" max="@_tp.TotalLanes" />
+                    </div>
+                }
+                <div class="d-flex align-items-center mb-2 gap-2">
+                    <label class="col-form-label col-form-label-sm" style="width:200px">Přepínání překážek:</label>
+                    <select class="form-select form-select-sm num-short" style="width:auto" @bind="_tp.SwitchRule">
+                        <option value="@SwitchRuleType.Automatic">Auto</option>
+                        <option value="@SwitchRuleType.Manual">Manuální</option>
+                    </select>
+                </div>
+                <div class="d-flex align-items-center mb-2 gap-2">
+                    <label class="col-form-label col-form-label-sm" style="width:200px">Max. 1 klub na rozběh:</label>
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" @bind="_maxOneClubPerHeat" />
+                    </div>
+                </div>
+                <div class="d-flex align-items-center mb-2 gap-2">
+                    <label class="col-form-label col-form-label-sm" style="width:200px">Cooldown kol mezi kluby:</label>
+                    <input type="number" class="form-control form-control-sm num-short" @bind="_clubCooldownHeats" min="1" max="10" />
+                </div>
+            </div>
+
+            @if (_categoryOrder.Count > 0)
+            {
+                <div class="section-label">Pořadí kategorií <span class="fw-normal text-muted" style="font-size:0.75rem">(přetažením)</span></div>
+                <div class="mb-3">
+                    @for (int ci = 0; ci < _categoryOrder.Count; ci++)
+                    {
+                        var ciCopy = ci;
+                        var key = _categoryOrder[ci];
+                        var isDragOver = _catDragOver == ciCopy;
+                        <div class="cat-item @(isDragOver ? "drag-over" : "")"
+                             draggable="true"
+                             @ondragstart="@(() => OnCatDragStart(ciCopy))"
+                             @ondragover:preventDefault="true"
+                             @ondragover="@(() => OnCatDragOver(ciCopy))"
+                             @ondragleave="OnCatDragLeave"
+                             @ondrop="@(() => OnCatDrop(ciCopy))">
+                            <span class="text-muted me-1">@(ciCopy + 1).</span> @CategoryKeyLabel(key)
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="section-label">Číslování startovních čísel</div>
+            <div class="mb-2">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="snmode" id="sn-global"
+                           checked="@(_startNumberMode == StartNumberMode.GlobalSequential)"
+                           @onchange="@(() => _startNumberMode = StartNumberMode.GlobalSequential)" />
+                    <label class="form-check-label" for="sn-global" style="font-size:0.85rem">Kontinuální</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="snmode" id="sn-heat"
+                           checked="@(_startNumberMode == StartNumberMode.PerHeat)"
+                           @onchange="@(() => _startNumberMode = StartNumberMode.PerHeat)" />
+                    <label class="form-check-label" for="sn-heat" style="font-size:0.85rem">Podle rozběhu (barva = rozběh)</label>
+                </div>
+            </div>
+
+            @if (_startNumberMode == StartNumberMode.PerHeat && _laneColors.Count > 0)
+            {
+                <div class="mb-3">
+                    @foreach (var lc in _laneColors)
+                    {
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <label class="col-form-label col-form-label-sm" style="width:65px;font-size:0.8rem">Dráha @lc.Lane:</label>
+                            <select class="form-select form-select-sm" style="width:110px"
+                                    value="@lc.Color.Name"
+                                    @onchange="@(e => lc.Color = _colorOptions.First(o => o.Name == e.Value!.ToString()))">
+                                @foreach (var opt in _colorOptions)
+                                {
+                                    <option value="@opt.Name" selected="@(opt.Name == lc.Color.Name)">@opt.Name</option>
+                                }
+                            </select>
+                            <span class="lane-swatch" style="background:@lc.Color.CssColor"></span>
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="d-grid gap-2 mt-2">
+                <button class="btn btn-primary" @onclick="GenerujStartovku">Generovat startovku</button>
+                @if (_heats != null)
+                {
+                    <button class="btn btn-success" @onclick="ExportujExcel">Exportovat do Excelu</button>
+                }
+            </div>
+            @if (_generateStatus != null)
+            {
+                <div class="alert alert-secondary py-1 px-2 mt-2" style="font-size:0.8rem">@_generateStatus</div>
+            }
+        }
+
+    </div>
+
+    <!-- PRAVÝ PANEL – konflikty + načtení závodníci -->
+    <div class="panel-right">
+        @if (_conflicts.Count > 0 && !_conflictsConfirmed)
+        {
+            <div class="d-flex align-items-center mb-2 gap-2">
+                <h5 class="mb-0">Konflikty k potvrzení</h5>
+                <span class="badge bg-warning text-dark">@_conflicts.Count</span>
+            </div>
+            <div class="table-responsive mb-2">
+                <table class="table table-sm table-bordered table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Soubor</th>
+                            <th>Řádek</th>
+                            <th>Závodník</th>
+                            <th>Popis konfliktu</th>
+                            <th>Potvrzená hodnota</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in _conflicts)
+                        {
+                            <tr>
+                                <td><small>@c.FileName</small></td>
+                                <td>@c.RowNumber</td>
+                                <td>@c.FirstName @c.LastName</td>
+                                <td><small>@c.Description</small></td>
+                                <td>
+                                    @if (c.Type == ConflictType.BirthYearUnknown)
+                                    {
+                                        <input type="number" class="form-control form-control-sm num-short" @bind="c.ConfirmedBirthYear" min="1950" max="@DateTime.Now.Year" />
+                                    }
+                                    else if (c.Type == ConflictType.SexUnknown)
+                                    {
+                                        <select class="form-select form-select-sm" style="width:auto" @bind="c.ConfirmedSex">
+                                            <option value="@SexEnum.Male">Muž</option>
+                                            <option value="@SexEnum.Female">Žena</option>
+                                        </select>
+                                    }
+                                    else if (c.Type == ConflictType.AgeGroupMismatch)
+                                    {
+                                        <select class="form-select form-select-sm" style="width:auto" @bind="c.ConfirmedAgeGroup">
+                                            @foreach (var ag in Enum.GetValues<AgeGroup>().Where(a => a != AgeGroup.Unknown))
+                                            {
+                                                <option value="@ag">@ag</option>
+                                            }
+                                        </select>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <button class="btn btn-sm btn-primary mb-3" @onclick="PotvrditANacistZnovu">Potvrdit a načíst znovu</button>
+        }
+
+        @if (_duplicates.Count > 0)
+        {
+            <div class="d-flex align-items-center mb-2 gap-2">
+                <h5 class="mb-0">Možné duplicity</h5>
+                <span class="badge bg-danger">@_duplicates.Count</span>
+            </div>
+            <div class="table-responsive mb-2">
+                <table class="table table-sm table-bordered table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Závodník</th>
+                            <th>Klub</th>
+                            <th>Ročník</th>
+                            <th>Soubory</th>
+                            <th>Akce</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var dup in _duplicates)
+                        {
+                            <tr>
+                                <td>
+                                    @{ var first = dup.Entries[0].Entry.Competitor; }
+                                    @first.FirstName @first.LastName
+                                </td>
+                                <td>@first.Club</td>
+                                <td>@first.BirthYear</td>
+                                <td>
+                                    @foreach (var (_, entry) in dup.Entries)
+                                    {
+                                        <div><small class="text-muted">@entry.SourceFile</small></div>
+                                    }
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm" @bind="dup.KeepIndex">
+                                        <option value="">Zachovat oba</option>
+                                        @foreach (var (idx, entry) in dup.Entries)
+                                        {
+                                            <option value="@idx">Zachovat z: @entry.SourceFile</option>
+                                        }
+                                    </select>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <button class="btn btn-sm btn-primary mb-3" @onclick="PotvrditDuplicity">Potvrdit a pokračovat</button>
+        }
+
+        @if (_heats != null)
+        {
+            <div class="d-flex align-items-center mb-2 gap-2">
+                <h5 class="mb-0">Startovka</h5>
+                <span class="badge bg-primary">@_heats.Count rozběhů</span>
+                <small class="text-muted">přetažením prohoďte závodníky</small>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered align-middle" style="border-collapse:collapse">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-center" style="width:60px">Rozběh</th>
+                            @for (int l = 1; l <= _tp.TotalLanes; l++)
+                            {
+                                <th class="text-center">Dráha @l</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int hi = 0; hi < _heats.Count; hi++)
+                        {
+                            var heat = _heats[hi];
+                            var hiCopy = hi;
+                            <tr>
+                                <td class="text-center fw-bold">@heat.Number</td>
+                                @for (int li = 0; li < _tp.TotalLanes; li++)
+                                {
+                                    var liCopy = li;
+                                    var comp = heat.Lanes.Length > li ? heat.Lanes[li] : null;
+                                    var isDragOver = _dragOverHeat == hiCopy && _dragOverLane == liCopy;
+                                    <td class="heat-cell @(isDragOver ? "drag-over" : "")"
+                                        draggable="@(comp != null ? "true" : "false")"
+                                        @ondragstart="@(() => OnDragStart(hiCopy, liCopy))"
+                                        @ondragover:preventDefault="true"
+                                        @ondragover="@(() => OnDragOver(hiCopy, liCopy))"
+                                        @ondragleave="@(() => OnDragLeave())"
+                                        @ondrop="@(() => OnDrop(hiCopy, liCopy))">
+                                        @if (comp != null)
+                                        {
+                                            <div style="cursor:grab;user-select:none">
+                                                <strong>@comp.FirstName @comp.LastName</strong><br />
+                                                <small class="text-muted">@comp.Club</small>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else if (_competitors != null)
+        {
+            <div class="d-flex align-items-center mb-2 gap-2">
+                <h5 class="mb-0">Načtení závodníci</h5>
+                <span class="badge bg-secondary">@_competitors.Count z @_loadedFileCount souborů</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered table-striped table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Jméno</th>
+                            <th>Příjmení</th>
+                            <th>Klub</th>
+                            <th>Ročník</th>
+                            <th>Kategorie</th>
+                            <th>Soubor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < _competitors.Count; i++)
+                        {
+                            var entry = _competitors[i];
+                            <tr>
+                                <td>@(i + 1)</td>
+                                <td>@entry.Competitor.FirstName</td>
+                                <td>@entry.Competitor.LastName</td>
+                                <td>@entry.Competitor.Club</td>
+                                <td>@entry.Competitor.BirthYear</td>
+                                <td>@entry.Competitor.Category.Name</td>
+                                <td><small class="text-muted">@entry.SourceFile</small></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+</div>
+
+@code {
+    private string? _status;
+    private string? _generateStatus;
+    private string _discipline = "100";
+
+    // Duplicity
+    private List<DuplicateGroup> _duplicates = new();
+
+    private sealed class DuplicateGroup
+    {
+        public required string Key { get; init; }
+        public required List<(int Index, LoadedCompetitor Entry)> Entries { get; init; }
+        // null = zachovat oba, index = zachovat jen tohoto
+        public int? KeepIndex { get; set; } = null;
+    }
+
+    private void DetekujDuplicity()
+    {
+        if (_competitors == null) { _duplicates = new(); return; }
+        _duplicates = _competitors
+            .Select((e, i) => (Index: i, Entry: e))
+            .GroupBy(x => $"{x.Entry.Competitor.FirstName.Trim()}|{x.Entry.Competitor.LastName.Trim()}|{x.Entry.Competitor.Club.Trim()}|{x.Entry.Competitor.BirthYear}")
+            .Where(g => g.Count() > 1)
+            .Select(g => new DuplicateGroup
+            {
+                Key = g.Key,
+                Entries = g.Select(x => (x.Index, x.Entry)).ToList()
+            })
+            .ToList();
+    }
+
+    private void PotvrditDuplicity()
+    {
+        if (_competitors == null) return;
+        var toRemove = new HashSet<int>();
+        foreach (var dup in _duplicates)
+        {
+            if (dup.KeepIndex.HasValue)
+            {
+                foreach (var (idx, _) in dup.Entries)
+                    if (idx != dup.KeepIndex.Value) toRemove.Add(idx);
+            }
+        }
+        if (toRemove.Count > 0)
+            _competitors = _competitors
+                .Select((e, i) => (e, i))
+                .Where(x => !toRemove.Contains(x.i))
+                .Select(x => x.e)
+                .ToList();
+        _duplicates = new();
+    }
+
+    // Startovka
+    private List<Heat>? _heats;
+    private AppConfig? _lastAppConfig;
+
+    // Drag & drop
+    private int _dragFromHeat = -1;
+    private int _dragFromLane = -1;
+    private int _dragOverHeat = -1;
+    private int _dragOverLane = -1;
+
+    private void OnDragStart(int heat, int lane)
+    {
+        _dragFromHeat = heat;
+        _dragFromLane = lane;
+    }
+
+    private void OnDragOver(int heat, int lane)
+    {
+        _dragOverHeat = heat;
+        _dragOverLane = lane;
+    }
+
+    private void OnDragLeave()
+    {
+        _dragOverHeat = -1;
+        _dragOverLane = -1;
+    }
+
+    private void OnDrop(int toHeat, int toLane)
+    {
+        if (_heats == null || _dragFromHeat < 0) return;
+        if (_dragFromHeat == toHeat && _dragFromLane == toLane) { ResetDrag(); return; }
+
+        var fromLanes = _heats[_dragFromHeat].Lanes;
+        var toLanes   = _heats[toHeat].Lanes;
+
+        if (_dragFromLane < fromLanes.Length && toLane < toLanes.Length)
+        {
+            (fromLanes[_dragFromLane], toLanes[toLane]) = (toLanes[toLane], fromLanes[_dragFromLane]);
+        }
+
+        ResetDrag();
+    }
+
+    private void ResetDrag()
+    {
+        _dragFromHeat = _dragFromLane = _dragOverHeat = _dragOverLane = -1;
+    }
+    private List<PendingFile> _pendingFiles = new();
+    private List<ConflictRecord> _conflicts = new();
+
+    // Konfigurace tratě (editovatelná kopie)
+    private TrackPlanEdit _tp = new();
+    private bool _maxOneClubPerHeat = true;
+    private int _clubCooldownHeats = 2;
+
+    // Pořadí kategorií
+    private List<CategoryKey> _categoryOrder = new();
+    private int _catDragFrom = -1;
+    private int _catDragOver = -1;
+
+    private void OnCatDragStart(int idx) => _catDragFrom = idx;
+    private void OnCatDragOver(int idx) => _catDragOver = idx;
+    private void OnCatDragLeave() => _catDragOver = -1;
+    private void OnCatDrop(int toIdx)
+    {
+        if (_catDragFrom < 0 || _catDragFrom == toIdx) { _catDragFrom = _catDragOver = -1; return; }
+        var item = _categoryOrder[_catDragFrom];
+        _categoryOrder.RemoveAt(_catDragFrom);
+        _categoryOrder.Insert(toIdx, item);
+        _catDragFrom = _catDragOver = -1;
+    }
+
+    private static string CategoryKeyLabel(CategoryKey k)
+    {
+        var sex = k.Sex == SexEnum.Female ? "Ženy/dívky" : (k.Sex == SexEnum.Male ? "Muži/chlapci" : "");
+        var age = k.AgeGroup switch
+        {
+            AgeGroup.Pripravka => "Přípravka",
+            AgeGroup.Mladsi    => "Mladší",
+            AgeGroup.Starsi    => "Starší",
+            AgeGroup.Dorost    => k.SubGroup switch
+            {
+                SubGroup.Mladsi  => "Dorost – mladší",
+                SubGroup.Stredni => "Dorost – střední",
+                SubGroup.Starsi  => "Dorost – starší",
+                _                => "Dorost"
+            },
+            AgeGroup.Dospeli   => "Dospělí",
+            _                  => k.AgeGroup.ToString()
+        };
+        return string.IsNullOrEmpty(sex) ? age : $"{age} ({sex})";
+    }
+    private StartNumberMode _startNumberMode = StartNumberMode.GlobalSequential;
+    private List<LaneColorEdit> _laneColors = new();
+    private List<LaneColorOption> _colorOptions = new();
+
+    private sealed class LaneColorOption
+    {
+        public required string Name { get; init; }
+        public required int[] Rgb { get; init; }
+        public string CssColor => $"rgb({Rgb[0]},{Rgb[1]},{Rgb[2]})";
+    }
+
+    private sealed class LaneColorEdit
+    {
+        public int Lane { get; init; }
+        public LaneColorOption Color { get; set; } = null!;
+    }
+    private bool _conflictsConfirmed = false;
+    private List<LoadedCompetitor>? _competitors;
+    private int _loadedFileCount = 0;
+
+    // ── Models ──────────────────────────────────────────────────────────────
+
+    private sealed record PendingFile(string Name, string[]? CsvLines, byte[]? XlsxBytes);
+
+    private sealed record LoadedCompetitor(Competitor Competitor, string SourceFile);
+
+    private enum ConflictType { AgeGroupMismatch, SexUnknown, BirthYearUnknown }
+
+    private sealed class ConflictRecord
+    {
+        public required string FileName { get; init; }
+        public required int RowNumber { get; init; }
+        public required string FirstName { get; init; }
+        public required string LastName { get; init; }
+        public required ConflictType Type { get; init; }
+        public required string Description { get; init; }
+
+        public AgeGroup SuggestedAgeGroup { get; init; }
+        public SubGroup SuggestedSubGroup { get; init; }
+        public SexEnum SuggestedSex { get; init; }
+        public int SuggestedBirthYear { get; init; }
+
+        public AgeGroup ConfirmedAgeGroup { get; set; }
+        public SubGroup ConfirmedSubGroup { get; set; }
+        public SexEnum ConfirmedSex { get; set; }
+        public int ConfirmedBirthYear { get; set; }
+    }
+
+    // ── Event handlers ───────────────────────────────────────────────────────
+
+    private async Task SouborVybran(InputFileChangeEventArgs e)
+    {
+        _pendingFiles.Clear();
+        _competitors = null;
+        _conflicts.Clear();
+        _conflictsConfirmed = false;
+
+        // Nesmíme volat StateHasChanged dokud čteme soubory —
+        // re-render by invalidoval file handles v InputFile komponentě.
+        foreach (var file in e.GetMultipleFiles(50))
+        {
+            var ext = Path.GetExtension(file.Name).ToLowerInvariant();
+            if (ext is ".xlsx" or ".xls")
+            {
+                using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                _pendingFiles.Add(new PendingFile(file.Name, null, ms.ToArray()));
+            }
+            else
+            {
+                using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+                using var textReader = new StreamReader(stream, Encoding.UTF8);
+                var content = await textReader.ReadToEndAsync();
+                var lines = content.Split('\n').Select(l => l.TrimEnd('\r')).ToArray();
+                _pendingFiles.Add(new PendingFile(file.Name, lines, null));
+            }
+        }
+        // Teprve tady je bezpečné re-renderovat
+    }
+
+    private async Task NactiSoubory()
+    {
+        _status = "načítám...";
+        _competitors = null;
+        _conflicts = new();
+        _conflictsConfirmed = false;
+        StateHasChanged();
+
+        try
+        {
+            var (catalog, mapper) = await LoadConfig();
+            var allCompetitors = new List<LoadedCompetitor>();
+
+            foreach (var file in _pendingFiles)
+            {
+                var fileConflicts = new List<ConflictRecord>();
+                var resolver = new CollectingResolver(fileConflicts, file.Name);
+                foreach (var c in LoadFile(file, catalog, mapper, resolver))
+                    allCompetitors.Add(new LoadedCompetitor(c, file.Name));
+                _conflicts.AddRange(fileConflicts);
+            }
+
+            _loadedFileCount = _pendingFiles.Count;
+
+            if (_conflicts.Count == 0)
+            {
+                _competitors = allCompetitors;
+                _conflictsConfirmed = true;
+                DetekujDuplicity();
+                await LoadTrackPlanDefaults();
+            }
+
+            _status = null;
+        }
+        catch (Exception ex)
+        {
+            _status = $"Chyba: {ex.Message}";
+        }
+    }
+
+    private async Task PotvrditANacistZnovu()
+    {
+        _status = "načítám s potvrzenými hodnotami...";
+        StateHasChanged();
+
+        try
+        {
+            var (catalog, mapper) = await LoadConfig();
+            var resolver = new ConfirmedResolver(_conflicts);
+            var allCompetitors = new List<LoadedCompetitor>();
+
+            foreach (var file in _pendingFiles)
+            {
+                resolver.CurrentFileName = file.Name;
+                foreach (var c in LoadFile(file, catalog, mapper, resolver))
+                    allCompetitors.Add(new LoadedCompetitor(c, file.Name));
+            }
+
+            _competitors = allCompetitors;
+            _conflictsConfirmed = true;
+            DetekujDuplicity();
+            await LoadTrackPlanDefaults();
+            _status = null;
+        }
+        catch (Exception ex)
+        {
+            _status = $"Chyba: {ex.Message}";
+        }
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    private async Task<(CategoryCatalog catalog, CategoryTextMapper mapper)> LoadConfig()
+    {
+        var categoriesJson = await Http.GetStringAsync("Config/categories.json");
+        var mappingJson = await Http.GetStringAsync($"Config/category-mapping-{_discipline}.json");
+        var catalog = CategoryCatalogLoader.LoadFromJson(categoriesJson, CategoryCodeBuilder.Build, discipline: null);
+        var mappingConfig = MappingConfigLoader.LoadFromJson(mappingJson);
+        return (catalog, new CategoryTextMapper(mappingConfig));
+    }
+
+    private async Task LoadTrackPlanDefaults()
+    {
+        var json = await Http.GetStringAsync($"Config/scheduler-config-{_discipline}.json");
+        var cfg = SchedulerConfigLoader.LoadFromJson(json);
+        _tp = new TrackPlanEdit
+        {
+            TotalLanes                 = cfg.TrackPlan.TotalLanes,
+            InitialBariera170Lanes     = cfg.TrackPlan.InitialBariera170Lanes,
+            AfterSwitchBariera170Lanes = cfg.TrackPlan.AfterSwitchBariera170Lanes,
+            InitialBariera200Lanes     = cfg.TrackPlan.InitialBariera200Lanes,
+            AfterSwitchBariera200Lanes = cfg.TrackPlan.AfterSwitchBariera200Lanes,
+            InitialBarieraLanes        = cfg.TrackPlan.InitialBarieraLanes,
+            AfterSwitchBarieraLanes    = cfg.TrackPlan.AfterSwitchBarieraLanes,
+            SwitchRule                 = cfg.TrackPlan.SwitchRule,
+        };
+        _maxOneClubPerHeat  = cfg.Rules.MaxOneClubPerHeat;
+        _clubCooldownHeats  = cfg.Rules.ClubCooldownHeats;
+        _startNumberMode    = cfg.StartNumberMode;
+        _categoryOrder      = cfg.CategoryOrder.ToList();
+
+        // Načti paletu barev
+        if (_colorOptions.Count == 0)
+        {
+            var colorsJson = await Http.GetStringAsync("Config/lane-colors.json");
+            _colorOptions = System.Text.Json.JsonSerializer.Deserialize<List<LaneColorOptionDto>>(colorsJson,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })!
+                .Select(d => new LaneColorOption { Name = d.Name, Rgb = d.Rgb })
+                .ToList();
+        }
+
+        // Výchozí barvy drah z existující Excel konfigurace
+        InitLaneColors(cfg.TrackPlan.TotalLanes);
+    }
+
+    private void InitLaneColors(int totalLanes)
+    {
+        _laneColors = Enumerable.Range(1, totalLanes).Select(lane =>
+        {
+            // Výchozí barva: vezmi z existující konfigurace nebo první z palety
+            var defaultColor = _colorOptions.Count > 0
+                ? _colorOptions[(lane - 1) % _colorOptions.Count]
+                : new LaneColorOption { Name = "Bílá", Rgb = new[] { 255, 255, 255 } };
+            return new LaneColorEdit { Lane = lane, Color = defaultColor };
+        }).ToList();
+    }
+
+    private sealed class LaneColorOptionDto
+    {
+        public string Name { get; set; } = "";
+        public int[] Rgb { get; set; } = Array.Empty<int>();
+    }
+
+    private async Task GenerujStartovku()
+    {
+        _generateStatus = "generuji...";
+        _heats = null;
+        StateHasChanged();
+
+        try
+        {
+            var schedulerJson = await Http.GetStringAsync($"Config/scheduler-config-{_discipline}.json");
+            var baseCfg = SchedulerConfigLoader.LoadFromJson(schedulerJson);
+
+            var trackPlan = BuildTrackPlan();
+            var schedulerConfig = new SchedulerConfig
+            {
+                CategoryOrder   = _categoryOrder.Count > 0 ? _categoryOrder : baseCfg.CategoryOrder,
+                Rules           = new SchedulingRules
+                {
+                    MaxOneClubPerHeat = _maxOneClubPerHeat,
+                    ClubCooldownHeats = _clubCooldownHeats
+                },
+                TrackPlan       = trackPlan,
+                StartNumberMode = _startNumberMode
+            };
+
+            var excelStyle = ExcelStyleConfigLoader.LoadFromJson(schedulerJson, trackPlan.TotalLanes);
+            if (_laneColors.Count > 0)
+            {
+                var laneColorsOverride = _laneColors.ToDictionary(
+                    lc => lc.Lane,
+                    lc => (lc.Color.Rgb[0], lc.Color.Rgb[1], lc.Color.Rgb[2]));
+                excelStyle = new ExcelStyleConfig
+                {
+                    TotalLanes            = excelStyle.TotalLanes,
+                    CategoryColors        = excelStyle.CategoryColors,
+                    LaneStartColors       = laneColorsOverride,
+                    DefaultCategoryColor  = excelStyle.DefaultCategoryColor,
+                    DefaultLaneStartColor = excelStyle.DefaultLaneStartColor
+                };
+            }
+
+            _lastAppConfig = new AppConfig { Scheduler = schedulerConfig, Excel = excelStyle };
+
+            var competitors = _competitors!.Select(lc => lc.Competitor).ToList();
+            var scheduler = new IndependentLaneSwitchScheduler(trackPlan, schedulerConfig.CategoryOrder, schedulerConfig.Rules);
+            var (heats, _) = scheduler.GenerateWithReport(competitors);
+
+            _heats = heats.ToList();
+            _generateStatus = $"{_heats.Count} rozběhů, {competitors.Count} závodníků — zkontrolujte a exportujte.";
+        }
+        catch (Exception ex)
+        {
+            _generateStatus = $"Chyba: {ex.Message}";
+        }
+    }
+
+    private async Task ExportujExcel()
+    {
+        if (_heats == null || _lastAppConfig == null) return;
+        _generateStatus = "exportuji...";
+        StateHasChanged();
+
+        try
+        {
+            var heatsToExport = _heats.Where(h => h.Lanes.Any(l => l != null)).ToList();
+            var bytes = new ExcelStartListWriter().WriteToBytes(heatsToExport, _lastAppConfig);
+            var base64 = Convert.ToBase64String(bytes);
+            await JS.InvokeVoidAsync("downloadFile", "startovka.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64);
+            _generateStatus = "Exportováno.";
+        }
+        catch (Exception ex)
+        {
+            _generateStatus = $"Chyba exportu: {ex.Message}";
+        }
+    }
+
+    private TrackPlan BuildTrackPlan() => new TrackPlan
+    {
+        TotalLanes                 = _tp.TotalLanes,
+        InitialBariera170Lanes     = _tp.InitialBariera170Lanes,
+        AfterSwitchBariera170Lanes = _tp.AfterSwitchBariera170Lanes,
+        InitialBariera200Lanes     = _tp.InitialBariera200Lanes,
+        AfterSwitchBariera200Lanes = _tp.AfterSwitchBariera200Lanes,
+        InitialBarieraLanes        = _tp.InitialBarieraLanes,
+        AfterSwitchBarieraLanes    = _tp.AfterSwitchBarieraLanes,
+        SwitchRule                 = _tp.SwitchRule,
+    };
+
+    // Mutable kopie TrackPlan pro formulář (TrackPlan má init-only properties)
+    private sealed class TrackPlanEdit
+    {
+        public int TotalLanes { get; set; } = 3;
+        public int InitialBariera170Lanes { get; set; } = 0;
+        public int AfterSwitchBariera170Lanes { get; set; } = 1;
+        public int InitialBariera200Lanes { get; set; } = 0;
+        public int AfterSwitchBariera200Lanes { get; set; } = 1;
+        public int InitialBarieraLanes { get; set; } = 0;
+        public int AfterSwitchBarieraLanes { get; set; } = 1;
+        public SwitchRuleType SwitchRule { get; set; } = SwitchRuleType.Automatic;
+    }
+
+    private static IReadOnlyList<Competitor> LoadFile(PendingFile file, CategoryCatalog catalog, CategoryTextMapper mapper, IInteractiveResolver resolver)
+    {
+        if (file.XlsxBytes != null)
+        {
+            using var ms = new MemoryStream(file.XlsxBytes);
+            return new ExcelRegistrationReader(catalog, mapper, resolver).ReadFromStream(ms);
+        }
+        return new CommonRegistrationReader(catalog, mapper, resolver).ReadFromLines(file.CsvLines!);
+    }
+
+    // ── Resolvers ────────────────────────────────────────────────────────────
+
+    private sealed class CollectingResolver : IInteractiveResolver
+    {
+        private readonly List<ConflictRecord> _conflicts;
+        private readonly string _fileName;
+
+        public CollectingResolver(List<ConflictRecord> conflicts, string fileName)
+        {
+            _conflicts = conflicts;
+            _fileName = fileName;
+        }
+
+        public int ResolveBirthYear(CompetitorDraft draft, string? birthRaw)
+        {
+            var suggested = DateTime.Now.Year - 20;
+            _conflicts.Add(new ConflictRecord
+            {
+                FileName = _fileName, RowNumber = draft.RowNumber,
+                FirstName = draft.FirstName, LastName = draft.LastName,
+                Type = ConflictType.BirthYearUnknown,
+                Description = $"Nelze parsovat rok narození: '{birthRaw}'",
+                SuggestedBirthYear = suggested, ConfirmedBirthYear = suggested
+            });
+            return suggested;
+        }
+
+        public (AgeGroup, SubGroup) ResolveAgeGroupMismatch(
+            CompetitorDraft draft, AgeGroup parsedGroup, SubGroup parsedSub,
+            AgeGroup expectedGroup, SubGroup expectedSub, IReadOnlySet<AgeGroup> noSubGroupIfGroup)
+        {
+            _conflicts.Add(new ConflictRecord
+            {
+                FileName = _fileName, RowNumber = draft.RowNumber,
+                FirstName = draft.FirstName, LastName = draft.LastName,
+                Type = ConflictType.AgeGroupMismatch,
+                Description = $"Kat. '{draft.CategoryRaw}' → {parsedGroup}, dle roku {draft.BirthYear} očekáváno {expectedGroup}",
+                SuggestedAgeGroup = expectedGroup, SuggestedSubGroup = expectedSub,
+                ConfirmedAgeGroup = expectedGroup, ConfirmedSubGroup = expectedSub
+            });
+            return (expectedGroup, expectedSub);
+        }
+
+        public SexEnum ResolveSex(CompetitorDraft draft, AgeGroup group)
+        {
+            var suggested = draft.LastName.TrimEnd().EndsWith("á", StringComparison.OrdinalIgnoreCase)
+                ? SexEnum.Female
+                : SexEnum.Male;
+            _conflicts.Add(new ConflictRecord
+            {
+                FileName = _fileName, RowNumber = draft.RowNumber,
+                FirstName = draft.FirstName, LastName = draft.LastName,
+                Type = ConflictType.SexUnknown,
+                Description = $"Nelze určit pohlaví pro kategorii '{draft.CategoryRaw}'",
+                SuggestedSex = suggested, ConfirmedSex = suggested
+            });
+            return suggested;
+        }
+    }
+
+    private sealed class ConfirmedResolver : IInteractiveResolver
+    {
+        private readonly Dictionary<(string, int, ConflictType), ConflictRecord> _dict;
+        public string CurrentFileName { get; set; } = "";
+
+        public ConfirmedResolver(IEnumerable<ConflictRecord> conflicts)
+        {
+            _dict = conflicts.ToDictionary(c => (c.FileName, c.RowNumber, c.Type));
+        }
+
+        private ConflictRecord? Lookup(CompetitorDraft draft, ConflictType type)
+            => _dict.TryGetValue((CurrentFileName, draft.RowNumber, type), out var c) ? c : null;
+
+        public int ResolveBirthYear(CompetitorDraft draft, string? birthRaw)
+            => Lookup(draft, ConflictType.BirthYearUnknown)?.ConfirmedBirthYear ?? DateTime.Now.Year - 20;
+
+        public (AgeGroup, SubGroup) ResolveAgeGroupMismatch(
+            CompetitorDraft draft, AgeGroup parsedGroup, SubGroup parsedSub,
+            AgeGroup expectedGroup, SubGroup expectedSub, IReadOnlySet<AgeGroup> noSubGroupIfGroup)
+        {
+            var c = Lookup(draft, ConflictType.AgeGroupMismatch);
+            return c != null ? (c.ConfirmedAgeGroup, c.ConfirmedSubGroup) : (expectedGroup, expectedSub);
+        }
+
+        public SexEnum ResolveSex(CompetitorDraft draft, AgeGroup group)
+            => Lookup(draft, ConflictType.SexUnknown)?.ConfirmedSex ?? SexEnum.Male;
+    }
+}
