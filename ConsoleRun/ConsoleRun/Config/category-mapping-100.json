@@ -35,7 +35,7 @@
     },
     {
       "patterns": [ "M" ],
-      "value": "Female",
+      "value": "Male",
       "priority": 10,
       "exactOnly": true
     },
