@@ -664,7 +664,7 @@
 
         // Nesmíme volat StateHasChanged dokud čteme soubory —
         // re-render by invalidoval file handles v InputFile komponentě.
-        foreach (var file in e.GetMultipleFiles(50))
+        foreach (var file in e.GetMultipleFiles(200))
         {
             var ext = Path.GetExtension(file.Name).ToLowerInvariant();
             if (ext is ".xlsx" or ".xls")
