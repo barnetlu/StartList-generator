@@ -1234,6 +1234,9 @@
                 laneColors[i + 1] = (rgb[0], rgb[1], rgb[2]);
             }
 
+            var schedulerJson = await Http.GetStringAsync($"Config/scheduler-config-{_discipline}.json");
+            var categoryColors = ExcelStyleConfigLoader.LoadFromJson(schedulerJson, colorGroupsList.Count).CategoryColors;
+
             var cfg = new AppConfig
             {
                 Scheduler = new SchedulerConfig { StartNumberMode = StartNumberMode.PerHeat },
@@ -1242,7 +1245,7 @@
                     TotalLanes = colorGroupsList.Count,
                     LaneStartColors = laneColors,
                     DefaultCategoryColor = (255, 255, 255),
-                    CategoryColors = new Dictionary<CategoryKey, (int r, int g, int b)>()
+                    CategoryColors = categoryColors
                 }
             };
 
