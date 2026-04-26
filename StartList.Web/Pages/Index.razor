@@ -477,6 +477,131 @@
                 </table>
             </div>
         }
+
+        @if (_competitors != null && _colorOptions.Count > 0)
+        {
+            <div class="mt-4 border-top pt-3">
+                <h6>Číslování závodníků</h6>
+                <div class="mb-2" style="font-size:0.82rem;color:#6c757d">
+                    Přiřaď barvu čísla každé kategorii. Závodníci sdílející barvu dostanou čísla ze společné řady (po sborech za sebou).
+                </div>
+                <div class="table-responsive mb-2">
+                    <table class="table table-sm table-bordered" style="max-width:420px">
+                        <thead class="table-light">
+                            <tr><th>Kategorie</th><th>Barva čísla</th><th class="text-center">Počet</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var cat in _competitors.Select(c => c.Competitor.Category).DistinctBy(c => c.Code).OrderBy(c => c.Name))
+                            {
+                                var catCode = cat.Code;
+                                var catCount = _competitors.Count(c => c.Competitor.Category.Code == catCode);
+                                <tr>
+                                    <td>@cat.Name</td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-1">
+                                            <select class="form-select form-select-sm" style="width:110px"
+                                                    value="@(_cislovaniColors.TryGetValue(catCode, out var cn) ? cn : _colorOptions[0].Name)"
+                                                    @onchange="@(e => _cislovaniColors[catCode] = e.Value!.ToString()!)">
+                                                @foreach (var opt in _colorOptions)
+                                                {
+                                                    <option value="@opt.Name">@opt.Name</option>
+                                                }
+                                            </select>
+                                            <span class="lane-swatch" style="background:@(_colorOptions.FirstOrDefault(o => o.Name == (_cislovaniColors.TryGetValue(catCode, out var n) ? n : _colorOptions[0].Name))?.CssColor)"></span>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">@catCount</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <button class="btn btn-sm btn-outline-primary mb-2" @onclick="ExportujCisla">Exportovat čísla do Excelu</button>
+                @if (_cislovaniStatus != null)
+                {
+                    <div class="alert alert-secondary py-1 px-2 mt-2" style="font-size:0.8rem">@_cislovaniStatus</div>
+                }
+            </div>
+        }
+
+        @if (_competitors != null)
+        {
+            <div class="mt-4 border-top pt-3">
+                <h6>Porovnání s ligou</h6>
+                <div class="mb-2" style="font-size:0.82rem;color:#6c757d">
+                    Nahraj ligové soubory (.xlsx/.xlsm) pro kontrolu, kdo v lize chybí.
+                </div>
+                <div class="mb-2">
+                    <label class="form-label form-label-sm mb-1">Děti (Přípravka, Mladší, Starší)</label>
+                    <InputFile OnChange="@(e => LigaSouborVybran(e, LigaTyp.Deti))" accept=".xlsx,.xlsm" class="form-control form-control-sm" />
+                    @if (_ligaDetiName != null) { <small class="text-success">@_ligaDetiName</small> }
+                </div>
+                <div class="mb-2">
+                    <label class="form-label form-label-sm mb-1">Dorost</label>
+                    <InputFile OnChange="@(e => LigaSouborVybran(e, LigaTyp.Dorost))" accept=".xlsx,.xlsm" class="form-control form-control-sm" />
+                    @if (_ligaDorostName != null) { <small class="text-success">@_ligaDorostName</small> }
+                </div>
+                <div class="mb-2">
+                    <label class="form-label form-label-sm mb-1">Dospělí (Muži, Ženy)</label>
+                    <InputFile OnChange="@(e => LigaSouborVybran(e, LigaTyp.Dospeli))" accept=".xlsx,.xlsm" class="form-control form-control-sm" />
+                    @if (_ligaDospeliName != null) { <small class="text-success">@_ligaDospeliName</small> }
+                </div>
+                <button class="btn btn-sm btn-outline-primary mb-2"
+                        @onclick="PorovnejSLigou"
+                        disabled="@(_ligaDetiBytes == null && _ligaDorostBytes == null && _ligaDospeliBytes == null)">
+                    Porovnat s ligou
+                </button>
+                @if (_ligaStatus != null)
+                {
+                    <div class="alert alert-secondary py-1 px-2 mb-2" style="font-size:0.8rem">@_ligaStatus</div>
+                }
+                @if (_ligaVysledky != null)
+                {
+                    var chybi    = _ligaVysledky.Where(v => v.Stav == LigaStav.Chybi).ToList();
+                    var obracene = _ligaVysledky.Where(v => v.Stav == LigaStav.Obracene).ToList();
+                    <div class="d-flex gap-2 mb-2 flex-wrap">
+                        <span class="badge bg-success">OK: @_ligaVysledky.Count(v => v.Stav == LigaStav.Ok)</span>
+                        <span class="badge bg-danger">Chybí: @chybi.Count</span>
+                        <span class="badge bg-warning text-dark">Obrácené jméno: @obracene.Count</span>
+                        <button class="btn btn-sm btn-outline-secondary py-0" @onclick="ExportujLigaCsv">CSV export</button>
+                    </div>
+                    @if (chybi.Count > 0)
+                    {
+                        <div class="mb-2"><strong style="font-size:0.85rem">Chybí v lize</strong></div>
+                        <div class="table-responsive mb-3">
+                            <table class="table table-sm table-bordered table-hover">
+                                <thead class="table-light">
+                                    <tr><th>OSH</th><th>Jméno a příjmení</th><th>Tým</th><th>Kategorie</th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var v in chybi.OrderBy(v => v.Osh ?? "zzz").ThenBy(v => v.Sdh))
+                                    {
+                                        <tr class="table-danger"><td>@(v.Osh ?? "—")</td><td>@v.Jmeno</td><td>@v.Sdh</td><td>@v.Kategorie</td></tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    @if (obracene.Count > 0)
+                    {
+                        <div class="mb-2"><strong style="font-size:0.85rem">Obrácené pořadí jména v lize</strong></div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered table-hover">
+                                <thead class="table-light">
+                                    <tr><th>OSH</th><th>Jméno a příjmení</th><th>Tým</th><th>Kategorie</th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var v in obracene.OrderBy(v => v.Osh ?? "zzz").ThenBy(v => v.Sdh))
+                                    {
+                                        <tr class="table-warning"><td>@(v.Osh ?? "—")</td><td>@v.Jmeno</td><td>@v.Sdh</td><td>@v.Kategorie</td></tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                }
+            </div>
+        }
     </div>
 
 </div>
@@ -650,7 +775,7 @@
 
     private sealed record PendingFile(string Name, string[]? CsvLines, byte[]? XlsxBytes);
 
-    private sealed record LoadedCompetitor(Competitor Competitor, string SourceFile);
+    private sealed record LoadedCompetitor(Competitor Competitor, string SourceFile, string? Osh = null);
 
     private enum ConflictType { AgeGroupMismatch, SexUnknown, BirthYearUnknown }
 
@@ -722,10 +847,11 @@
 
             foreach (var file in _pendingFiles)
             {
+                var fileOsh = file.XlsxBytes != null ? TryReadFileOsh(file.XlsxBytes) : null;
                 var fileConflicts = new List<ConflictRecord>();
                 var resolver = new CollectingResolver(fileConflicts, file.Name);
                 foreach (var c in LoadFile(file, catalog, mapper, resolver))
-                    allCompetitors.Add(new LoadedCompetitor(c, file.Name));
+                    allCompetitors.Add(new LoadedCompetitor(c, file.Name, fileOsh));
                 _conflicts.AddRange(fileConflicts);
             }
 
@@ -737,6 +863,7 @@
                 _conflictsConfirmed = true;
                 DetekujDuplicity();
                 await LoadTrackPlanDefaults();
+                InitCislovaniColors();
             }
 
             _status = null;
@@ -760,15 +887,17 @@
 
             foreach (var file in _pendingFiles)
             {
+                var fileOsh = file.XlsxBytes != null ? TryReadFileOsh(file.XlsxBytes) : null;
                 resolver.CurrentFileName = file.Name;
                 foreach (var c in LoadFile(file, catalog, mapper, resolver))
-                    allCompetitors.Add(new LoadedCompetitor(c, file.Name));
+                    allCompetitors.Add(new LoadedCompetitor(c, file.Name, fileOsh));
             }
 
             _competitors = allCompetitors;
             _conflictsConfirmed = true;
             DetekujDuplicity();
             await LoadTrackPlanDefaults();
+            InitCislovaniColors();
             _status = null;
         }
         catch (Exception ex)
@@ -1037,5 +1166,304 @@
 
         public SexEnum ResolveSex(CompetitorDraft draft, AgeGroup group)
             => Lookup(draft, ConflictType.SexUnknown)?.ConfirmedSex ?? SexEnum.Male;
+    }
+
+    // ── Číslování závodníků ──────────────────────────────────────────────────
+
+    private Dictionary<string, string> _cislovaniColors = new();
+    private string? _cislovaniStatus;
+
+    private void InitCislovaniColors()
+    {
+        if (_competitors == null || _colorOptions.Count == 0) return;
+        foreach (var cat in _competitors.Select(c => c.Competitor.Category).DistinctBy(c => c.Code))
+            _cislovaniColors.TryAdd(cat.Code, _colorOptions[0].Name);
+    }
+
+    private async Task ExportujCisla()
+    {
+        if (_competitors == null) return;
+        _cislovaniStatus = "generuji...";
+        StateHasChanged();
+        await Task.Yield();
+
+        try
+        {
+            // Pro každou barvu: sbírej závodníky, seskup po sborech, čísla za sebou
+            var byColor = _competitors
+                .GroupBy(lc => _cislovaniColors.TryGetValue(lc.Competitor.Category.Code, out var c) ? c : _colorOptions[0].Name)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            // výsledek: (lc, číslo, barva)
+            var numbered = new List<(LoadedCompetitor Lc, int Cislo, string ColorName)>();
+            foreach (var (colorName, group) in byColor)
+            {
+                int num = 1;
+                foreach (var clubGroup in group.GroupBy(lc => lc.Competitor.Club).OrderBy(g => g.Key))
+                    foreach (var lc in clubGroup)
+                        numbered.Add((lc, num++, colorName));
+            }
+
+            var bytes = GenerujCislaExcel(numbered);
+            var base64 = Convert.ToBase64String(bytes);
+            await JS.InvokeVoidAsync("downloadFile", "cisla.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64);
+            _cislovaniStatus = $"Exportováno — {numbered.Count} závodníků.";
+        }
+        catch (Exception ex)
+        {
+            _cislovaniStatus = $"Chyba: {ex.Message}";
+        }
+    }
+
+    private byte[] GenerujCislaExcel(List<(LoadedCompetitor Lc, int Cislo, string ColorName)> numbered)
+    {
+        using var wb = new XLWorkbook();
+        var ws = wb.AddWorksheet("Čísla");
+
+        // Hlavička
+        string[] headers = { "Sbor", "Číslo", "Jméno", "Příjmení", "Kategorie" };
+        for (int i = 0; i < headers.Length; i++)
+        {
+            ws.Cell(1, i + 1).Value = headers[i];
+            ws.Cell(1, i + 1).Style.Font.Bold = true;
+        }
+
+        // Data seřazená po sborech abecedně
+        int row = 2;
+        foreach (var entry in numbered.OrderBy(e => e.Lc.Competitor.Club).ThenBy(e => e.Cislo))
+        {
+            var c = entry.Lc.Competitor;
+            ws.Cell(row, 1).Value = c.Club;
+            ws.Cell(row, 2).Value = entry.Cislo;
+            ws.Cell(row, 3).Value = c.FirstName;
+            ws.Cell(row, 4).Value = c.LastName;
+            ws.Cell(row, 5).Value = c.Category.Name;
+
+            var colorOpt = _colorOptions.FirstOrDefault(o => o.Name == entry.ColorName);
+            if (colorOpt != null)
+                ws.Cell(row, 2).Style.Fill.BackgroundColor =
+                    XLColor.FromArgb(colorOpt.Rgb[0], colorOpt.Rgb[1], colorOpt.Rgb[2]);
+
+            row++;
+        }
+
+        ws.Columns().AdjustToContents();
+        ws.Range(1, 1, row - 1, headers.Length).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        ws.Range(1, 1, row - 1, headers.Length).Style.Border.InsideBorder  = XLBorderStyleValues.Hair;
+
+        using var ms = new MemoryStream();
+        wb.SaveAs(ms);
+        return ms.ToArray();
+    }
+
+    // ── Liga porovnání ───────────────────────────────────────────────────────
+
+    private enum LigaTyp { Deti, Dorost, Dospeli }
+    private enum LigaStav { Ok, Obracene, Chybi }
+    private sealed record LigaVysledek(string Jmeno, string Sdh, string Kategorie, LigaStav Stav, string? Osh);
+    private sealed record LigaMapping(string CategoryCode, LigaTyp Typ, string SheetName);
+
+    private static readonly IReadOnlyList<LigaMapping> _ligaMappings = new[]
+    {
+        new LigaMapping("PR_MIX",    LigaTyp.Deti,    "PŘP"),
+        new LigaMapping("ML_F",      LigaTyp.Deti,    "Dml"),
+        new LigaMapping("ML_M",      LigaTyp.Deti,    "CH ml"),
+        new LigaMapping("ST_F",      LigaTyp.Deti,    "D st"),
+        new LigaMapping("ST_M",      LigaTyp.Deti,    "CH st"),
+        new LigaMapping("DOR-ML_F",  LigaTyp.Dorost,  "D ml"),
+        new LigaMapping("DOR-STR_F", LigaTyp.Dorost,  "Dstř"),
+        new LigaMapping("DOR-ST_F",  LigaTyp.Dorost,  "D st"),
+        new LigaMapping("DOR-ML_M",  LigaTyp.Dorost,  "CH ml"),
+        new LigaMapping("DOR-STR_M", LigaTyp.Dorost,  "CH stř"),
+        new LigaMapping("DOR-ST_M",  LigaTyp.Dorost,  "CH st"),
+        new LigaMapping("AD_F",      LigaTyp.Dospeli, "ženy"),
+        new LigaMapping("AD_M",      LigaTyp.Dospeli, "muži"),
+    };
+
+    private byte[]?  _ligaDetiBytes;
+    private byte[]?  _ligaDorostBytes;
+    private byte[]?  _ligaDospeliBytes;
+    private string?  _ligaDetiName;
+    private string?  _ligaDorostName;
+    private string?  _ligaDospeliName;
+    private List<LigaVysledek>? _ligaVysledky;
+    private string?  _ligaStatus;
+
+    private async Task LigaSouborVybran(InputFileChangeEventArgs e, LigaTyp typ)
+    {
+        var file = e.GetMultipleFiles(1).FirstOrDefault();
+        if (file == null) return;
+        using var ms = new MemoryStream();
+        await file.OpenReadStream(20 * 1024 * 1024).CopyToAsync(ms);
+        var bytes = ms.ToArray();
+        switch (typ)
+        {
+            case LigaTyp.Deti:    _ligaDetiBytes = bytes;    _ligaDetiName = file.Name;    break;
+            case LigaTyp.Dorost:  _ligaDorostBytes = bytes;  _ligaDorostName = file.Name;  break;
+            case LigaTyp.Dospeli: _ligaDospeliBytes = bytes; _ligaDospeliName = file.Name; break;
+        }
+        _ligaVysledky = null;
+    }
+
+    private async Task PorovnejSLigou()
+    {
+        if (_competitors == null) return;
+        _ligaStatus = "porovnávám...";
+        _ligaVysledky = null;
+        StateHasChanged();
+        await Task.Yield();
+
+        try
+        {
+            var allKeys = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+
+            if (_ligaDetiBytes != null)
+                foreach (var kv in ParseLigaExcel(_ligaDetiBytes, LigaTyp.Deti))
+                    allKeys[kv.Key] = kv.Value;
+
+            if (_ligaDorostBytes != null)
+                foreach (var kv in ParseLigaExcel(_ligaDorostBytes, LigaTyp.Dorost))
+                    allKeys[kv.Key] = kv.Value;
+
+            if (_ligaDospeliBytes != null)
+                foreach (var kv in ParseLigaExcel(_ligaDospeliBytes, LigaTyp.Dospeli))
+                    allKeys[kv.Key] = kv.Value;
+
+            _ligaVysledky = _competitors.Select(lc =>
+            {
+                var c = lc.Competitor;
+                var stav = PorovnejZavodnikaLiga(c, allKeys);
+                return new LigaVysledek($"{c.FirstName} {c.LastName}", c.Club, c.Category.Name, stav, lc.Osh);
+            }).ToList();
+
+            _ligaStatus = null;
+        }
+        catch (Exception ex)
+        {
+            _ligaStatus = $"Chyba: {ex.Message}";
+        }
+    }
+
+    private static Dictionary<string, HashSet<string>> ParseLigaExcel(byte[] bytes, LigaTyp typ)
+    {
+        var result = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        using var ms = new MemoryStream(bytes);
+        using var wb = new XLWorkbook(ms);
+
+        foreach (var mapping in _ligaMappings.Where(m => m.Typ == typ))
+        {
+            var ws = wb.Worksheets.FirstOrDefault(s =>
+                s.Name == mapping.SheetName ||
+                LigaNorm(s.Name) == LigaNorm(mapping.SheetName));
+
+            if (ws == null) continue;
+
+            var keys = new HashSet<string>(StringComparer.Ordinal);
+            int lastRow = ws.LastRowUsed()?.RowNumber() ?? 5;
+
+            for (int r = 5; r <= lastRow; r++)
+            {
+                var jmeno = ws.Cell(r, 1).GetString().Trim();
+                var sdh   = ws.Cell(r, 2).GetString().Trim();
+                if (string.IsNullOrWhiteSpace(jmeno)) continue;
+
+                keys.Add(LigaKlic(jmeno, sdh));
+                keys.Add(LigaKlic(LigaProhodJmeno(jmeno), sdh));
+            }
+
+            result[mapping.CategoryCode] = keys;
+        }
+
+        return result;
+    }
+
+    private static LigaStav PorovnejZavodnikaLiga(Competitor c, Dictionary<string, HashSet<string>> allKeys)
+    {
+        var primyKlic    = LigaKlic($"{c.FirstName} {c.LastName}", c.Club);
+        var obracenyKlic = LigaKlic($"{c.LastName} {c.FirstName}", c.Club);
+
+        if (allKeys.TryGetValue(c.Category.Code, out var katSet))
+        {
+            if (katSet.Contains(primyKlic))    return LigaStav.Ok;
+            if (katSet.Contains(obracenyKlic)) return LigaStav.Obracene;
+            return LigaStav.Chybi;
+        }
+
+        // fallback: hledej napříč všemi kategoriemi
+        foreach (var (_, keys) in allKeys)
+        {
+            if (keys.Contains(primyKlic))    return LigaStav.Ok;
+            if (keys.Contains(obracenyKlic)) return LigaStav.Obracene;
+        }
+        return LigaStav.Chybi;
+    }
+
+    private static string LigaNorm(string s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return "";
+        var formD = s.Trim().ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD);
+        var sb = new System.Text.StringBuilder();
+        foreach (var ch in formD)
+            if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(ch) != System.Globalization.UnicodeCategory.NonSpacingMark)
+                sb.Append(ch);
+        return System.Text.RegularExpressions.Regex.Replace(
+            sb.ToString().Normalize(System.Text.NormalizationForm.FormC), @"\s+", " ").Trim();
+    }
+
+    private static string LigaProhodJmeno(string jmeno)
+    {
+        var parts = jmeno.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2 ? string.Join(" ", parts.Skip(1)) + " " + parts[0] : jmeno;
+    }
+
+    private static string LigaKlic(string jmeno, string sdh) => LigaNorm(jmeno) + "||" + LigaNorm(sdh);
+
+    private static string? TryReadFileOsh(byte[] bytes)
+    {
+        try
+        {
+            using var ms = new MemoryStream(bytes);
+            using var wb = new XLWorkbook(ms);
+            var ws = wb.Worksheets.First();
+            int lastScan = Math.Min(ws.LastRowUsed()?.RowNumber() ?? 1, 30);
+
+            for (int r = 1; r <= lastScan; r++)
+            {
+                int? oshCol = null;
+                foreach (var cell in ws.Row(r).CellsUsed())
+                {
+                    var t = cell.GetString().Trim().ToLowerInvariant();
+                    if (t == "osh" || (t.Length <= 6 && t.Contains("osh")))
+                    { oshCol = cell.Address.ColumnNumber; break; }
+                }
+                if (!oshCol.HasValue) continue;
+
+                for (int dr = r + 1; dr <= lastScan; dr++)
+                {
+                    var v = ws.Cell(dr, oshCol.Value).GetString().Trim();
+                    if (!string.IsNullOrEmpty(v)) return v;
+                }
+            }
+            return null;
+        }
+        catch { return null; }
+    }
+
+    private async Task ExportujLigaCsv()
+    {
+        if (_ligaVysledky == null) return;
+        var stavLabel = new Dictionary<LigaStav, string>
+        {
+            { LigaStav.Ok, "OK" }, { LigaStav.Chybi, "Chybí" }, { LigaStav.Obracene, "Obrácené jméno" }
+        };
+        var sb = new System.Text.StringBuilder();
+        sb.Append('﻿'); // UTF-8 BOM
+        sb.AppendLine("OSH;Jméno a příjmení;Tým;Kategorie;Stav");
+        foreach (var v in _ligaVysledky.OrderBy(v => v.Osh ?? "zzz").ThenBy(v => v.Sdh))
+            sb.AppendLine($"{v.Osh ?? ""};{v.Jmeno};{v.Sdh};{v.Kategorie};{stavLabel[v.Stav]}");
+
+        var base64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(sb.ToString()));
+        await JS.InvokeVoidAsync("downloadFile", "liga-porovnani.csv", "text/csv", base64);
     }
 }
