@@ -1198,72 +1198,67 @@
 
         try
         {
-            // Pro každou barvu: sbírej závodníky, seskup po sborech, čísla za sebou
-            var byColor = _competitors
-                .GroupBy(lc => _cislovaniColors.TryGetValue(lc.Competitor.Category.Code, out var c) ? c : _colorOptions[0].Name)
-                .ToDictionary(g => g.Key, g => g.ToList());
+            // Build sorted color groups in the order defined by _colorOptions
+            var colorGroupsList = new List<IReadOnlyList<Competitor>>();
+            var usedColorOpts = new List<LaneColorOption>();
 
-            // výsledek: (lc, číslo, barva)
-            var numbered = new List<(LoadedCompetitor Lc, int Cislo, string ColorName)>();
-            foreach (var (colorName, group) in byColor)
+            foreach (var colorOpt in _colorOptions)
             {
-                int num = 1;
-                foreach (var clubGroup in group.GroupBy(lc => lc.Competitor.Club).OrderBy(g => g.Key))
-                    foreach (var lc in clubGroup)
-                        numbered.Add((lc, num++, colorName));
+                var group = _competitors
+                    .Where(lc => (_cislovaniColors.TryGetValue(lc.Competitor.Category.Code, out var cn) ? cn : _colorOptions[0].Name) == colorOpt.Name)
+                    .Select(lc => lc.Competitor)
+                    .OrderBy(c => c.Club, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(c => c.LastName, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(c => c.FirstName, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (group.Count > 0)
+                {
+                    colorGroupsList.Add(group);
+                    usedColorOpts.Add(colorOpt);
+                }
             }
 
-            var bytes = GenerujCislaExcel(numbered);
+            if (colorGroupsList.Count == 0)
+            {
+                _cislovaniStatus = "Žádní závodníci.";
+                return;
+            }
+
+            var heats = NumberingScheduler.Generate(colorGroupsList);
+
+            var laneColors = new Dictionary<int, (int r, int g, int b)>();
+            for (int i = 0; i < usedColorOpts.Count; i++)
+            {
+                var rgb = usedColorOpts[i].Rgb;
+                laneColors[i + 1] = (rgb[0], rgb[1], rgb[2]);
+            }
+
+            var cfg = new AppConfig
+            {
+                Scheduler = new SchedulerConfig { StartNumberMode = StartNumberMode.PerHeat },
+                Excel = new ExcelStyleConfig
+                {
+                    TotalLanes = colorGroupsList.Count,
+                    LaneStartColors = laneColors,
+                    DefaultCategoryColor = (255, 255, 255),
+                    CategoryColors = new Dictionary<CategoryKey, (int r, int g, int b)>()
+                }
+            };
+
+            var writer = new ExcelStartListWriter();
+            var bytes = writer.WriteToBytes(heats, cfg, onlyClubsSheet: true);
+
+            var total = colorGroupsList.Sum(g => g.Count);
             var base64 = Convert.ToBase64String(bytes);
             await JS.InvokeVoidAsync("downloadFile", "cisla.xlsx",
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64);
-            _cislovaniStatus = $"Exportováno — {numbered.Count} závodníků.";
+            _cislovaniStatus = $"Exportováno — {total} závodníků.";
         }
         catch (Exception ex)
         {
             _cislovaniStatus = $"Chyba: {ex.Message}";
         }
-    }
-
-    private byte[] GenerujCislaExcel(List<(LoadedCompetitor Lc, int Cislo, string ColorName)> numbered)
-    {
-        using var wb = new XLWorkbook();
-        var ws = wb.AddWorksheet("Čísla");
-
-        // Hlavička
-        string[] headers = { "Sbor", "Číslo", "Jméno", "Příjmení", "Kategorie" };
-        for (int i = 0; i < headers.Length; i++)
-        {
-            ws.Cell(1, i + 1).Value = headers[i];
-            ws.Cell(1, i + 1).Style.Font.Bold = true;
-        }
-
-        // Data seřazená po sborech abecedně
-        int row = 2;
-        foreach (var entry in numbered.OrderBy(e => e.Lc.Competitor.Club).ThenBy(e => e.Cislo))
-        {
-            var c = entry.Lc.Competitor;
-            ws.Cell(row, 1).Value = c.Club;
-            ws.Cell(row, 2).Value = entry.Cislo;
-            ws.Cell(row, 3).Value = c.FirstName;
-            ws.Cell(row, 4).Value = c.LastName;
-            ws.Cell(row, 5).Value = c.Category.Name;
-
-            var colorOpt = _colorOptions.FirstOrDefault(o => o.Name == entry.ColorName);
-            if (colorOpt != null)
-                ws.Cell(row, 2).Style.Fill.BackgroundColor =
-                    XLColor.FromArgb(colorOpt.Rgb[0], colorOpt.Rgb[1], colorOpt.Rgb[2]);
-
-            row++;
-        }
-
-        ws.Columns().AdjustToContents();
-        ws.Range(1, 1, row - 1, headers.Length).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-        ws.Range(1, 1, row - 1, headers.Length).Style.Border.InsideBorder  = XLBorderStyleValues.Hair;
-
-        using var ms = new MemoryStream();
-        wb.SaveAs(ms);
-        return ms.ToArray();
     }
 
     // ── Liga porovnání ───────────────────────────────────────────────────────

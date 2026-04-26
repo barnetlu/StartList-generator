@@ -12,24 +12,24 @@ namespace IO_Adapters.Excel
 {
     public sealed class ExcelStartListWriter : IStartListWriter
     {
-        public void Write(string outputPath, IReadOnlyList<Heat> heats, AppConfig cfg, SchedulingReport? report = null)
+        public void Write(string outputPath, IReadOnlyList<Heat> heats, AppConfig cfg, SchedulingReport? report = null, bool onlyClubsSheet = false)
         {
             using var wb = new XLWorkbook();
-            WriteAllSheet(wb, heats, cfg);
+            if (!onlyClubsSheet) WriteAllSheet(wb, heats, cfg);
             WriteClubsSheet(wb, heats, cfg);
-            WriteResultsSheet(wb, heats, cfg);
-            if (report != null)
+            if (!onlyClubsSheet) WriteResultsSheet(wb, heats, cfg);
+            if (!onlyClubsSheet && report != null)
                 WriteReportSheet(wb, report);
             wb.SaveAs(outputPath);
         }
 
-        public byte[] WriteToBytes(IReadOnlyList<Heat> heats, AppConfig cfg, SchedulingReport? report = null)
+        public byte[] WriteToBytes(IReadOnlyList<Heat> heats, AppConfig cfg, SchedulingReport? report = null, bool onlyClubsSheet = false)
         {
             using var wb = new XLWorkbook();
-            WriteAllSheet(wb, heats, cfg);
+            if (!onlyClubsSheet) WriteAllSheet(wb, heats, cfg);
             WriteClubsSheet(wb, heats, cfg);
-            WriteResultsSheet(wb, heats, cfg);
-            if (report != null)
+            if (!onlyClubsSheet) WriteResultsSheet(wb, heats, cfg);
+            if (!onlyClubsSheet && report != null)
                 WriteReportSheet(wb, report);
             using var ms = new MemoryStream();
             wb.SaveAs(ms);
@@ -233,8 +233,8 @@ namespace IO_Adapters.Excel
                 r++;
 
                 // hlavička
-                ws.Cell(r, 1).Value = "#";
-                ws.Cell(r, 2).Value = "Jméno a příjmení";
+                ws.Cell(r, 1).Value = "Jméno a příjmení";
+                ws.Cell(r, 2).Value = "#";
                 ws.Row(r).Style.Font.Bold = true;
                 ws.Row(r).Height = 24.75;
                 r++;
@@ -244,29 +244,27 @@ namespace IO_Adapters.Excel
                     // když by někdo nebyl ve startMap (neměl přiřazený heat), dáme prázdno
                     startMap.TryGetValue(c, out var s);
 
-                    var startCell = ws.Cell(r, 1);
-                    var nameCell = ws.Cell(r, 2);
+                    var nameCell  = ws.Cell(r, 1);
+                    var startCell = ws.Cell(r, 2);
 
-                    if (startNos.TryGetValue(c, out var startNo))
-                    {
-                        startCell.Value = startNo;
-                    }
-                    else
-                    {
-                        startCell.Value = "";
-                    }
                     nameCell.Value = $"{c.FirstName} {c.LastName}";
 
-                    // barvy: Start podle dráhy, Name podle kategorie
+                    if (startNos.TryGetValue(c, out var startNo))
+                        startCell.Value = startNo;
+                    else
+                        startCell.Value = "";
+
+                    // barvy: Name podle kategorie, Start podle dráhy
+                    var catColor = cfg.Excel.CategoryColors.TryGetValue(c.Category.Key, out var cc)
+                        ? cc
+                        : cfg.Excel.DefaultCategoryColor;
+                    ApplyFill(nameCell, catColor);
+
                     var laneColor = cfg.Excel.LaneStartColors.TryGetValue(s.laneNo, out var lc)
                         ? lc
                         : cfg.Excel.DefaultLaneStartColor;
                     ApplyFill(startCell, laneColor);
 
-                    var catColor = cfg.Excel.CategoryColors.TryGetValue(c.Category.Key, out var cc)
-                        ? cc
-                        : cfg.Excel.DefaultCategoryColor;
-                    ApplyFill(nameCell, catColor);
                     ws.Row(r).Height = 24.75;
                     r++;
                 }
