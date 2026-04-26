@@ -560,7 +560,7 @@
                 {
                     var chybi    = _ligaVysledky.Where(v => v.Stav == LigaStav.Chybi).ToList();
                     var obracene = _ligaVysledky.Where(v => v.Stav == LigaStav.Obracene).ToList();
-                    <div class="d-flex gap-2 mb-2 flex-wrap">
+                    <div class="d-flex gap-2 mb-3 flex-wrap">
                         <span class="badge bg-success">OK: @_ligaVysledky.Count(v => v.Stav == LigaStav.Ok)</span>
                         <span class="badge bg-danger">Chybí: @chybi.Count</span>
                         <span class="badge bg-warning text-dark">Obrácené jméno: @obracene.Count</span>
@@ -569,36 +569,44 @@
                     @if (chybi.Count > 0)
                     {
                         <div class="mb-2"><strong style="font-size:0.85rem">Chybí v lize</strong></div>
-                        <div class="table-responsive mb-3">
-                            <table class="table table-sm table-bordered table-hover">
-                                <thead class="table-light">
-                                    <tr><th>OSH</th><th>Jméno a příjmení</th><th>Tým</th><th>Kategorie</th></tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var v in chybi.OrderBy(v => v.Osh ?? "zzz").ThenBy(v => v.Sdh))
-                                    {
-                                        <tr class="table-danger"><td>@(v.Osh ?? "—")</td><td>@v.Jmeno</td><td>@v.Sdh</td><td>@v.Kategorie</td></tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
+                        @foreach (var katGroup in chybi.GroupBy(v => v.Kategorie).OrderBy(g => g.Key))
+                        {
+                            <div class="mb-1" style="font-size:0.82rem;font-weight:600;color:#495057">@katGroup.Key <span class="fw-normal text-muted">(@katGroup.Count())</span></div>
+                            <div class="table-responsive mb-3">
+                                <table class="table table-sm table-bordered table-hover">
+                                    <thead class="table-light">
+                                        <tr><th>OSH</th><th>Jméno a příjmení</th><th>Tým</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var v in katGroup.OrderBy(v => v.Osh ?? "zzz").ThenBy(v => v.Sdh))
+                                        {
+                                            <tr class="table-danger"><td>@(v.Osh ?? "—")</td><td>@v.Jmeno</td><td>@v.Sdh</td></tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
                     }
                     @if (obracene.Count > 0)
                     {
                         <div class="mb-2"><strong style="font-size:0.85rem">Obrácené pořadí jména v lize</strong></div>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered table-hover">
-                                <thead class="table-light">
-                                    <tr><th>OSH</th><th>Jméno a příjmení</th><th>Tým</th><th>Kategorie</th></tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var v in obracene.OrderBy(v => v.Osh ?? "zzz").ThenBy(v => v.Sdh))
-                                    {
-                                        <tr class="table-warning"><td>@(v.Osh ?? "—")</td><td>@v.Jmeno</td><td>@v.Sdh</td><td>@v.Kategorie</td></tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
+                        @foreach (var katGroup in obracene.GroupBy(v => v.Kategorie).OrderBy(g => g.Key))
+                        {
+                            <div class="mb-1" style="font-size:0.82rem;font-weight:600;color:#495057">@katGroup.Key <span class="fw-normal text-muted">(@katGroup.Count())</span></div>
+                            <div class="table-responsive mb-3">
+                                <table class="table table-sm table-bordered table-hover">
+                                    <thead class="table-light">
+                                        <tr><th>OSH</th><th>Jméno a příjmení</th><th>Tým</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var v in katGroup.OrderBy(v => v.Osh ?? "zzz").ThenBy(v => v.Sdh))
+                                        {
+                                            <tr class="table-warning"><td>@(v.Osh ?? "—")</td><td>@v.Jmeno</td><td>@v.Sdh</td></tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
                     }
                 }
             </div>
