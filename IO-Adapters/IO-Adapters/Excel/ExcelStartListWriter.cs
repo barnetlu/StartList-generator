@@ -12,24 +12,24 @@ namespace IO_Adapters.Excel
 {
     public sealed class ExcelStartListWriter : IStartListWriter
     {
-        public void Write(string outputPath, IReadOnlyList<Heat> heats, AppConfig cfg, SchedulingReport? report = null, bool onlyClubsSheet = false)
+        public void Write(string outputPath, IReadOnlyList<Heat> heats, AppConfig cfg, SchedulingReport? report = null, bool skipStartovka = false)
         {
             using var wb = new XLWorkbook();
-            if (!onlyClubsSheet) WriteAllSheet(wb, heats, cfg);
+            if (!skipStartovka) WriteAllSheet(wb, heats, cfg);
             WriteClubsSheet(wb, heats, cfg);
-            if (!onlyClubsSheet) WriteResultsSheet(wb, heats, cfg);
-            if (!onlyClubsSheet && report != null)
+            WriteResultsSheet(wb, heats, cfg);
+            if (!skipStartovka && report != null)
                 WriteReportSheet(wb, report);
             wb.SaveAs(outputPath);
         }
 
-        public byte[] WriteToBytes(IReadOnlyList<Heat> heats, AppConfig cfg, SchedulingReport? report = null, bool onlyClubsSheet = false)
+        public byte[] WriteToBytes(IReadOnlyList<Heat> heats, AppConfig cfg, SchedulingReport? report = null, bool skipStartovka = false)
         {
             using var wb = new XLWorkbook();
-            if (!onlyClubsSheet) WriteAllSheet(wb, heats, cfg);
+            if (!skipStartovka) WriteAllSheet(wb, heats, cfg);
             WriteClubsSheet(wb, heats, cfg);
-            if (!onlyClubsSheet) WriteResultsSheet(wb, heats, cfg);
-            if (!onlyClubsSheet && report != null)
+            WriteResultsSheet(wb, heats, cfg);
+            if (!skipStartovka && report != null)
                 WriteReportSheet(wb, report);
             using var ms = new MemoryStream();
             wb.SaveAs(ms);

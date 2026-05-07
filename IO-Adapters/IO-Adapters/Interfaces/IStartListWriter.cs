@@ -9,6 +9,6 @@ namespace IO_Adapters.Interfaces
 {
     internal interface IStartListWriter
     {
-        void Write(string outputPath, IReadOnlyList<Heat> heats, AppConfig excelCfg, SchedulingReport? report = null, bool onlyClubsSheet = false);
+        void Write(string outputPath, IReadOnlyList<Heat> heats, AppConfig excelCfg, SchedulingReport? report = null, bool skipStartovka = false);
     }
 }

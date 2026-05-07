@@ -1250,7 +1250,7 @@
             };
 
             var writer = new ExcelStartListWriter();
-            var bytes = writer.WriteToBytes(heats, cfg, onlyClubsSheet: true);
+            var bytes = writer.WriteToBytes(heats, cfg, skipStartovka: true);
 
             var total = colorGroupsList.Sum(g => g.Count);
             var base64 = Convert.ToBase64String(bytes);
