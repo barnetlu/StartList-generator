@@ -1364,6 +1364,11 @@
         }
     }
 
+    private static bool IsDrawingPath(string fullName) =>
+        fullName.StartsWith("xl/drawings/", StringComparison.OrdinalIgnoreCase) ||
+        fullName.StartsWith("xl/media/", StringComparison.OrdinalIgnoreCase) ||
+        fullName.StartsWith("xl/charts/", StringComparison.OrdinalIgnoreCase);
+
     private static byte[] StripDrawings(byte[] excelBytes)
     {
         using var msIn = new MemoryStream(excelBytes);
@@ -1373,21 +1378,39 @@
         {
             foreach (var entry in zipIn.Entries)
             {
-                if (entry.FullName.StartsWith("xl/drawings/", StringComparison.OrdinalIgnoreCase) ||
-                    entry.FullName.StartsWith("xl/media/", StringComparison.OrdinalIgnoreCase))
-                    continue;
+                if (IsDrawingPath(entry.FullName)) continue;
 
                 var outEntry = zipOut.CreateEntry(entry.FullName);
                 using var inStream = entry.Open();
                 using var outStream = outEntry.Open();
 
-                if (entry.FullName.StartsWith("xl/worksheets/_rels/", StringComparison.OrdinalIgnoreCase))
+                bool isRels = entry.FullName.EndsWith(".rels", StringComparison.OrdinalIgnoreCase);
+                bool isContentTypes = entry.FullName.Equals("[Content_Types].xml", StringComparison.OrdinalIgnoreCase);
+
+                if (isRels || isContentTypes)
                 {
                     var doc = System.Xml.Linq.XDocument.Load(inStream);
                     doc.Descendants()
-                       .Where(e => e.Name.LocalName == "Relationship" &&
-                                   (e.Attribute("Target")?.Value?.Contains("drawing", StringComparison.OrdinalIgnoreCase) == true ||
-                                    e.Attribute("Type")?.Value?.Contains("drawing", StringComparison.OrdinalIgnoreCase) == true))
+                       .Where(e =>
+                       {
+                           // rels: remove Relationship entries pointing to drawings/charts/media
+                           if (e.Name.LocalName == "Relationship")
+                           {
+                               var target = e.Attribute("Target")?.Value ?? "";
+                               var type = e.Attribute("Type")?.Value ?? "";
+                               return IsDrawingPath(target.TrimStart('/')) ||
+                                      type.Contains("drawing", StringComparison.OrdinalIgnoreCase) ||
+                                      type.Contains("chart", StringComparison.OrdinalIgnoreCase) ||
+                                      type.Contains("image", StringComparison.OrdinalIgnoreCase);
+                           }
+                           // Content_Types: remove Override entries for drawings/charts/media
+                           if (e.Name.LocalName == "Override")
+                           {
+                               var partName = (e.Attribute("PartName")?.Value ?? "").TrimStart('/');
+                               return IsDrawingPath(partName);
+                           }
+                           return false;
+                       })
                        .ToList()
                        .ForEach(e => e.Remove());
                     doc.Save(outStream);
