@@ -17,6 +17,7 @@ namespace IO_Adapters.Excel
             using var wb = new XLWorkbook();
             if (!skipStartovka) WriteAllSheet(wb, heats, cfg);
             WriteClubsSheet(wb, heats, cfg);
+            WriteFlatListSheet(wb, heats, cfg);
             WriteResultsSheet(wb, heats, cfg);
             if (!skipStartovka && report != null)
                 WriteReportSheet(wb, report);
@@ -28,6 +29,7 @@ namespace IO_Adapters.Excel
             using var wb = new XLWorkbook();
             if (!skipStartovka) WriteAllSheet(wb, heats, cfg);
             WriteClubsSheet(wb, heats, cfg);
+            WriteFlatListSheet(wb, heats, cfg);
             WriteResultsSheet(wb, heats, cfg);
             if (!skipStartovka && report != null)
                 WriteReportSheet(wb, report);
@@ -275,6 +277,62 @@ namespace IO_Adapters.Excel
                 tableRange.Style.Border.OutsideBorderColor = XLColor.Black;
                 r++; // mezera mezi SDH
             }
+
+            ws.Columns().AdjustToContents(1, 60);
+        }
+
+        private static void WriteFlatListSheet(XLWorkbook wb, IReadOnlyList<Heat> heats, AppConfig cfg)
+        {
+            var ws = wb.Worksheets.Add("Abeceda");
+            int r = 1;
+
+            var startMap = BuildStartMap(heats, cfg.Excel.TotalLanes);
+            var startNos = BuildStartNumbers(heats, cfg.Scheduler.StartNumberMode);
+
+            var all = heats.SelectMany(h => h.Competitors).Distinct()
+                .OrderBy(c => c.LastName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(c => c.FirstName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            ws.Cell(r, 1).Value = "Jméno a příjmení";
+            ws.Cell(r, 2).Value = "#";
+            ws.Row(r).Style.Font.Bold = true;
+            ws.Row(r).Height = 24.75;
+            r++;
+
+            foreach (var c in all)
+            {
+                startMap.TryGetValue(c, out var s);
+
+                var nameCell  = ws.Cell(r, 1);
+                var startCell = ws.Cell(r, 2);
+
+                nameCell.Value = $"{c.FirstName} {c.LastName}";
+
+                if (startNos.TryGetValue(c, out var startNo))
+                    startCell.Value = startNo;
+                else
+                    startCell.Value = "";
+
+                var catColor = cfg.Excel.CategoryColors.TryGetValue(c.Category.Key, out var cc)
+                    ? cc
+                    : cfg.Excel.DefaultCategoryColor;
+                ApplyFill(nameCell, catColor);
+
+                var laneColor = cfg.Excel.LaneStartColors.TryGetValue(s.laneNo, out var lc)
+                    ? lc
+                    : cfg.Excel.DefaultLaneStartColor;
+                ApplyFill(startCell, laneColor);
+
+                ws.Row(r).Height = 24.75;
+                r++;
+            }
+
+            var tableRange = ws.Range(1, 1, r - 1, 2);
+            tableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+            tableRange.Style.Border.InsideBorderColor = XLColor.Black;
+            tableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Medium;
+            tableRange.Style.Border.OutsideBorderColor = XLColor.Black;
 
             ws.Columns().AdjustToContents(1, 60);
         }
