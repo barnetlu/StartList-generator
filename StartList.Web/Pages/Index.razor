@@ -1352,11 +1352,60 @@
         }
     }
 
+    private static XLWorkbook OpenWorkbookSafe(byte[] bytes)
+    {
+        try
+        {
+            return new XLWorkbook(new MemoryStream(bytes));
+        }
+        catch (Exception ex) when (ex.Message.Contains("picture") || ex.Message.Contains("Picture"))
+        {
+            return new XLWorkbook(new MemoryStream(StripDrawings(bytes)));
+        }
+    }
+
+    private static byte[] StripDrawings(byte[] excelBytes)
+    {
+        using var msIn = new MemoryStream(excelBytes);
+        using var msOut = new MemoryStream();
+        using (var zipIn = new System.IO.Compression.ZipArchive(msIn, System.IO.Compression.ZipArchiveMode.Read))
+        using (var zipOut = new System.IO.Compression.ZipArchive(msOut, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var entry in zipIn.Entries)
+            {
+                if (entry.FullName.StartsWith("xl/drawings/", StringComparison.OrdinalIgnoreCase) ||
+                    entry.FullName.StartsWith("xl/media/", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var outEntry = zipOut.CreateEntry(entry.FullName);
+                using var inStream = entry.Open();
+                using var outStream = outEntry.Open();
+
+                if (entry.FullName.StartsWith("xl/worksheets/_rels/", StringComparison.OrdinalIgnoreCase))
+                {
+                    var doc = System.Xml.Linq.XDocument.Load(inStream);
+                    doc.Descendants()
+                       .Where(e => e.Name.LocalName == "Relationship" &&
+                                   (e.Attribute("Target")?.Value?.Contains("drawing", StringComparison.OrdinalIgnoreCase) == true ||
+                                    e.Attribute("Type")?.Value?.Contains("drawing", StringComparison.OrdinalIgnoreCase) == true))
+                       .ToList()
+                       .ForEach(e => e.Remove());
+                    doc.Save(outStream);
+                }
+                else
+                {
+                    inStream.CopyTo(outStream);
+                }
+            }
+        }
+        msOut.Position = 0;
+        return msOut.ToArray();
+    }
+
     private static Dictionary<string, HashSet<string>> ParseLigaExcel(byte[] bytes, LigaTyp typ)
     {
         var result = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
-        using var ms = new MemoryStream(bytes);
-        using var wb = new XLWorkbook(ms);
+        using var wb = OpenWorkbookSafe(bytes);
 
         foreach (var mapping in _ligaMappings.Where(m => m.Typ == typ))
         {
@@ -1430,8 +1479,7 @@
     {
         try
         {
-            using var ms = new MemoryStream(bytes);
-            using var wb = new XLWorkbook(ms);
+            using var wb = OpenWorkbookSafe(bytes);
             var ws = wb.Worksheets.First();
             int lastScan = Math.Min(ws.LastRowUsed()?.RowNumber() ?? 1, 30);
 

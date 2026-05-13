@@ -334,7 +334,8 @@ namespace IO_Adapters.Excel
             tableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Medium;
             tableRange.Style.Border.OutsideBorderColor = XLColor.Black;
 
-            ws.Columns().AdjustToContents(1, 60);
+            ws.Column(1).Width = 30;
+            ws.Column(2).Width = 5;
         }
 
         private static void WriteResultsSheet(XLWorkbook wb, IReadOnlyList<Heat> heats, AppConfig cfg)
