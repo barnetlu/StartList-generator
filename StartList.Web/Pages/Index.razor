@@ -746,8 +746,20 @@
         var age = k.AgeGroup switch
         {
             AgeGroup.Pripravka => "Přípravka",
-            AgeGroup.Mladsi    => "Mladší",
-            AgeGroup.Starsi    => "Starší",
+            AgeGroup.Mladsi    => k.SubGroup switch
+            {
+                SubGroup.Mladsi  => "Mladší – 7–8 let",
+                SubGroup.Stredni => "Mladší – střední",
+                SubGroup.Starsi  => "Mladší – 9–11 let",
+                _                => "Mladší"
+            },
+            AgeGroup.Starsi    => k.SubGroup switch
+            {
+                SubGroup.Mladsi  => "Starší – 12–13 let",
+                SubGroup.Stredni => "Starší – střední",
+                SubGroup.Starsi  => "Starší – 14–15 let",
+                _                => "Starší"
+            },
             AgeGroup.Dorost    => k.SubGroup switch
             {
                 SubGroup.Mladsi  => "Dorost – mladší",
