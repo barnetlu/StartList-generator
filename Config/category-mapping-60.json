@@ -30,22 +30,8 @@
       "value": "Male"
     }
   ],
-  //"subgroupRules": [
-  //  {
-  //    "patterns": [ "ML", "MLAD", "MLADSI" ],
-  //    "value": "Mladsi"
-  //  },
-  //  {
-  //    "patterns": [ "STR", "STRED", "STREDNI" ],
-  //    "value": "Stredni"
-  //  },
-  //  {
-  //    "patterns": [ "ST", "STAR", "STARSI" ],
-  //    "value": "Starsi"
-  //  }
-  //],
   "noSexIfGroup": [ "Pripravka" ],
-  "noSubGroupIfGroup": [ "Pripravka", "Mladsi", "Starsi" ],
+  "noSubGroupIfGroup": [ "Pripravka" ],
   "ageRules": [
     {
       "group": "Pripravka",
@@ -54,18 +40,28 @@
     },
     {
       "group": "Mladsi",
-      "subGroup": "None",
-      "years": [ 2019, 2018, 2017, 2016, 2015 ]
+      "subGroup": "Mladsi",
+      "years": [ 2019, 2018 ]
+    },
+    {
+      "group": "Mladsi",
+      "subGroup": "Starsi",
+      "years": [ 2017, 2016, 2015 ]
     },
     {
       "group": "Starsi",
-      "subGroup": "None",
-      "years": [ 2014, 2013, 2012, 2011 ]
+      "subGroup": "Mladsi",
+      "years": [ 2014, 2013 ]
+    },
+    {
+      "group": "Starsi",
+      "subGroup": "Starsi",
+      "years": [ 2012, 2011 ]
     }
   ],
     "fallbackOlder": {
       "group": "Starsi",
-      "subGroup": "None"
+      "subGroup": "Starsi"
     },
     "fallbackYounger": {
       "group": "Pripravka",

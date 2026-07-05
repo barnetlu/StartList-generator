@@ -10,37 +10,73 @@
       "seedByPerformance": false
     },
     {
-      "name": "Mladší žáci – dívky",
+      "name": "Mladší žáci – dívky 7-8 let",
       "sex": "Female",
       "ageGroup": "Mladsi",
-      "subGroup": "None",
+      "subGroup": "Mladsi",
       "obstacleType": "Crossbar",
       "discipline": "Run60",
       "seedByPerformance": false
     },
     {
-      "name": "Mladší žáci – chlapci",
+      "name": "Mladší žáci – dívky 9-11 let",
+      "sex": "Female",
+      "ageGroup": "Mladsi",
+      "subGroup": "Starsi",
+      "obstacleType": "Crossbar",
+      "discipline": "Run60",
+      "seedByPerformance": false
+    },
+    {
+      "name": "Mladší žáci – chlapci 7-8 let",
       "sex": "Male",
       "ageGroup": "Mladsi",
-      "subGroup": "None",
+      "subGroup": "Mladsi",
+      "obstacleType": "Crossbar",
+      "discipline": "Run60",
+      "seedByPerformance": false
+    },{
+
+      "name": "Mladší žáci – chlapci 9-11 let",
+      "sex": "Male",
+      "ageGroup": "Mladsi",
+      "subGroup": "Starsi",
       "obstacleType": "Crossbar",
       "discipline": "Run60",
       "seedByPerformance": false
     },
     {
-      "name": "Starší žáci – dívky",
+      "name": "Starší žáci – dívky 12-13 let",
       "sex": "Female",
       "ageGroup": "Starsi",
-      "subGroup": "None",
+      "subGroup": "Mladsi",
       "obstacleType": "Crossbar",
       "discipline": "Run60",
       "seedByPerformance": false
     },
     {
-      "name": "Starší žáci – chlapci",
+      "name": "Starší žáci – dívky 14-15 let",
+      "sex": "Female",
+      "ageGroup": "Starsi",
+      "subGroup": "Starsi",
+      "obstacleType": "Crossbar",
+      "discipline": "Run60",
+      "seedByPerformance": false
+    },
+    {
+      "name": "Starší žáci – chlapci 12-13 let",
       "sex": "Male",
       "ageGroup": "Starsi",
-      "subGroup": "None",
+      "subGroup": "Mladsi",
+      "obstacleType": "Barrier150",
+      "discipline": "Run60",
+      "seedByPerformance": false
+    },
+    {
+      "name": "Starší žáci – chlapci 14-15 let",
+      "sex": "Male",
+      "ageGroup": "Starsi",
+      "subGroup": "Starsi",
       "obstacleType": "Barrier150",
       "discipline": "Run60",
       "seedByPerformance": false
