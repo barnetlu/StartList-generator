@@ -54,6 +54,9 @@ namespace IO_Adapters.Mapping
             // 3) expected group by year
             var expected = _cfg.GetExpectedByBirthYear(birthYear.Value);
 
+            // 3b) sub not determined from text → use birth-year value automatically
+            if (sub == SubGroup.None && !_cfg.NoSubGroupIfGroup.Contains(group) && expected.Group == group)
+                sub = expected.SubGroup;
 
             // 4) mismatch handling
             if (group == AgeGroup.Unknown)
