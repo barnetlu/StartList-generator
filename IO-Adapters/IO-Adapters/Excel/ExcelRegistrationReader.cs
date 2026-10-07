@@ -60,7 +60,7 @@ namespace IO_Adapters.Excel
 
                 // 3) konec tabulky: borders + fallback 3 prázdné
                 int firstDataRow = headerRow + 1;
-                int lastRowByBorders = FindTableLastRowByBorders(ws, firstDataRow, map.LeftCol, map.RightCol, 250);
+                int lastRowByBorders = FindTableLastRowByBorders(ws, firstDataRow, map.LeftCol, map.RightCol, 2000);
                 int lastRow = lastRowByBorders > 0 ? lastRowByBorders : (ws.LastRowUsed()?.RowNumber() ?? firstDataRow);
 
                 var result = new List<Competitor>();
@@ -235,7 +235,7 @@ namespace IO_Adapters.Excel
             return new ColMap(orderCol.Value, nameCol.Value, lastNameCol, birthCol, catCol, oshCol, organizaceCol, left, right);
         }
 
-        private static int FindTableLastRowByBorders(IXLWorksheet ws, int firstDataRow, int leftCol, int rightCol, int maxScanRows = 200)
+        private static int FindTableLastRowByBorders(IXLWorksheet ws, int firstDataRow, int leftCol, int rightCol, int maxScanRows = 2000)
         {
             int lastUsed = ws.LastRowUsed()?.RowNumber() ?? firstDataRow;
             int scanUntil = Math.Min(lastUsed, firstDataRow + maxScanRows);
