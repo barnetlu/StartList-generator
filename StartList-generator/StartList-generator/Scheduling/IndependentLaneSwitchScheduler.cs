@@ -19,12 +19,14 @@ namespace StartList_Core.Scheduling
         private readonly TrackPlan _plan;
         private readonly IReadOnlyList<CategoryKey> _order;
         private readonly SchedulingRules _rules;
+        private readonly HashSet<Competitor>? _prioritySet;
 
-        public IndependentLaneSwitchScheduler(TrackPlan plan, IReadOnlyList<CategoryKey> categoryOrder, SchedulingRules rules)
+        public IndependentLaneSwitchScheduler(TrackPlan plan, IReadOnlyList<CategoryKey> categoryOrder, SchedulingRules rules, HashSet<Competitor>? prioritySet = null)
         {
             _plan = plan ?? throw new ArgumentNullException(nameof(plan));
             _order = categoryOrder ?? throw new ArgumentNullException(nameof(categoryOrder));
             _rules = rules ?? throw new ArgumentNullException(nameof(rules));
+            _prioritySet = prioritySet;
         }
 
         public (IReadOnlyList<Heat> Heats, SchedulingReport Report) GenerateWithReport(IReadOnlyList<Competitor> competitors)
@@ -71,7 +73,7 @@ namespace StartList_Core.Scheduling
                     lastHeatsClubs.Dequeue();
             }
 
-            static List<List<Competitor>> BuildPoolsInOrder(
+            List<List<Competitor>> BuildPoolsInOrder(
                 IReadOnlyList<Competitor> comps,
                 IReadOnlyList<CategoryKey> orderedKeys,
                 ObstacleType obstacle)
@@ -82,7 +84,8 @@ namespace StartList_Core.Scheduling
                 {
                     var list = comps
                         .Where(c => c.Category.ObstacleType == obstacle && c.Category.Key.Equals(key))
-                        .OrderBy(c => c.LastName).ThenBy(c => c.FirstName)
+                        .OrderBy(c => _prioritySet != null && _prioritySet.Contains(c) ? 0 : 1)
+                        .ThenBy(c => c.LastName).ThenBy(c => c.FirstName)
                         .ToList();
 
                     if (list.Count > 0) pools.Add(list);

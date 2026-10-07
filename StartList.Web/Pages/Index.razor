@@ -425,11 +425,16 @@
             <div class="d-flex align-items-center mb-2 gap-2">
                 <h5 class="mb-0">Načtení závodníci</h5>
                 <span class="badge bg-secondary">@_competitors.Count z @_loadedFileCount souborů</span>
+                @if (_prioritySet.Count > 0)
+                {
+                    <span class="badge bg-warning text-dark">@_prioritySet.Count prioritních</span>
+                }
             </div>
             <div class="table-responsive">
                 <table class="table table-sm table-bordered table-striped table-hover">
                     <thead class="table-light">
                         <tr>
+                            <th style="width:36px" title="Priorita — závodník bude zařazen co nejdřív">⭐</th>
                             <th>#</th>
                             <th>Jméno</th>
                             <th>Příjmení</th>
@@ -443,13 +448,22 @@
                         @for (int i = 0; i < _competitors.Count; i++)
                         {
                             var entry = _competitors[i];
-                            <tr>
+                            var comp = entry.Competitor;
+                            var isPrio = _prioritySet.Contains(comp);
+                            <tr class="@(isPrio ? "table-warning" : "")">
+                                <td class="text-center p-1">
+                                    <button class="btn btn-sm p-0 border-0 lh-1" style="font-size:1rem;background:none"
+                                            title="@(isPrio ? "Odebrat z priority" : "Přidat do priority")"
+                                            @onclick="@(() => TogglePriority(comp))">
+                                        @(isPrio ? "⭐" : "☆")
+                                    </button>
+                                </td>
                                 <td>@(i + 1)</td>
-                                <td>@entry.Competitor.FirstName</td>
-                                <td>@entry.Competitor.LastName</td>
-                                <td>@entry.Competitor.Club</td>
-                                <td>@entry.Competitor.BirthYear</td>
-                                <td>@entry.Competitor.Category.Name</td>
+                                <td>@comp.FirstName</td>
+                                <td>@comp.LastName</td>
+                                <td>@comp.Club</td>
+                                <td>@comp.BirthYear</td>
+                                <td>@comp.Category.Name</td>
                                 <td><small class="text-muted">@entry.SourceFile</small></td>
                             </tr>
                         }
@@ -631,6 +645,12 @@
         public int? KeepIndex { get; set; } = null;
     }
 
+    private void TogglePriority(Competitor comp)
+    {
+        if (!_prioritySet.Remove(comp))
+            _prioritySet.Add(comp);
+    }
+
     private void DetekujDuplicity()
     {
         if (_competitors == null) { _duplicates = new(); return; }
@@ -791,6 +811,7 @@
     private bool _conflictsConfirmed = false;
     private List<LoadedCompetitor>? _competitors;
     private int _loadedFileCount = 0;
+    private HashSet<Competitor> _prioritySet = new(System.Collections.Generic.ReferenceEqualityComparer.Instance);
 
     // ── Models ──────────────────────────────────────────────────────────────
 
@@ -859,6 +880,7 @@
         _competitors = null;
         _conflicts = new();
         _conflictsConfirmed = false;
+        _prioritySet = new(System.Collections.Generic.ReferenceEqualityComparer.Instance);
         StateHasChanged();
 
         try
@@ -898,6 +920,7 @@
     private async Task PotvrditANacistZnovu()
     {
         _status = "načítám s potvrzenými hodnotami...";
+        _prioritySet = new(System.Collections.Generic.ReferenceEqualityComparer.Instance);
         StateHasChanged();
 
         try
@@ -1033,7 +1056,8 @@
             _lastAppConfig = new AppConfig { Scheduler = schedulerConfig, Excel = excelStyle };
 
             var competitors = _competitors!.Select(lc => lc.Competitor).ToList();
-            var scheduler = new IndependentLaneSwitchScheduler(trackPlan, schedulerConfig.CategoryOrder, schedulerConfig.Rules);
+            var scheduler = new IndependentLaneSwitchScheduler(trackPlan, schedulerConfig.CategoryOrder, schedulerConfig.Rules,
+                _prioritySet.Count > 0 ? _prioritySet : null);
             var (heats, _) = scheduler.GenerateWithReport(competitors);
 
             _heats = heats.ToList();
