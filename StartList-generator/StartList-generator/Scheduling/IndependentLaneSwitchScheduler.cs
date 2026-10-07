@@ -227,7 +227,15 @@ namespace StartList_Core.Scheduling
             List<ObstacleType> initialLayout;
             List<ObstacleType> targetLayout;
 
-            if (is60Legacy)
+            bool useCustom = _plan.CustomInitialLayout?.Count == _plan.TotalLanes
+                          && _plan.CustomAfterSwitchLayout?.Count == _plan.TotalLanes;
+
+            if (useCustom)
+            {
+                initialLayout = _plan.CustomInitialLayout!.ToList();
+                targetLayout  = _plan.CustomAfterSwitchLayout!.ToList();
+            }
+            else if (is60Legacy)
             {
                 int initB = Math.Clamp(_plan.InitialBarieraLanes, 0, _plan.TotalLanes);
                 int finB = Math.Clamp(_plan.AfterSwitchBarieraLanes, 0, _plan.TotalLanes);
@@ -250,7 +258,6 @@ namespace StartList_Core.Scheduling
                 int fin200 = Math.Clamp(_plan.AfterSwitchBariera200Lanes, 0, _plan.TotalLanes - fin170);
                 int finCross = _plan.TotalLanes - fin170 - fin200;
 
-                // konvence: crossbar zleva, bariéry vpravo
                 initialLayout = Enumerable.Repeat(ObstacleType.Crossbar, initCross)
                     .Concat(Enumerable.Repeat(ObstacleType.Barrier170, init170))
                     .Concat(Enumerable.Repeat(ObstacleType.Barrier200, init200))
@@ -262,8 +269,6 @@ namespace StartList_Core.Scheduling
                     .ToList();
             }
 
-
-
             var laneObstacle = initialLayout.ToArray();
             var laneTarget = targetLayout.ToArray();
             var laneSwitched = new bool[_plan.TotalLanes];
@@ -274,7 +279,20 @@ namespace StartList_Core.Scheduling
             int init170Rem = poolsByObs.TryGetValue(ObstacleType.Barrier170, out var b1700) ? Remaining(b1700) : 0;
             int init200Rem = poolsByObs.TryGetValue(ObstacleType.Barrier200, out var b2000) ? Remaining(b2000) : 0;
 
-            var switchPlan = BuildSwitchPlan(initCrossRem, init150Rem, init170Rem, init200Rem, _plan, is60Legacy);
+            // Extract lane counts from the chosen layout for switch planning
+            int initLane150 = initialLayout.Count(o => o == ObstacleType.Barrier150);
+            int finLane150  = targetLayout.Count(o => o == ObstacleType.Barrier150);
+            int initLane170 = initialLayout.Count(o => o == ObstacleType.Barrier170);
+            int finLane170  = targetLayout.Count(o => o == ObstacleType.Barrier170);
+            int initLane200 = initialLayout.Count(o => o == ObstacleType.Barrier200);
+            int finLane200  = targetLayout.Count(o => o == ObstacleType.Barrier200);
+
+            var switchPlan = BuildSwitchPlan(
+                initCrossRem, init150Rem, init170Rem, init200Rem,
+                _plan.TotalLanes,
+                initLane150, finLane150,
+                initLane170, finLane170,
+                initLane200, finLane200);
 
             // ---------------- 4) Cooldown tracking ----------------
             int cooldownWindow = Math.Max(0, (_rules.ClubCooldownHeats >= 0 ? _rules.ClubCooldownHeats : 0) - 1);
@@ -494,21 +512,13 @@ namespace StartList_Core.Scheduling
             int? Switch200Heat
         );
 
-        private SwitchPlan BuildSwitchPlan(int remCross, int rem150, int rem170, int rem200, TrackPlan plan, bool is60Legacy)
+        private SwitchPlan BuildSwitchPlan(
+            int remCross, int rem150, int rem170, int rem200,
+            int L,
+            int init150, int fin150,
+            int init170, int fin170,
+            int init200, int fin200)
         {
-            int L = plan.TotalLanes;
-
-            // Počty bariérových drah před a po přepnutí
-            int init150 = is60Legacy ? Math.Clamp(plan.InitialBarieraLanes, 0, L) : 0;
-            int fin150  = is60Legacy ? Math.Clamp(plan.AfterSwitchBarieraLanes, 0, L) : 0;
-
-            int init170 = !is60Legacy ? Math.Clamp(plan.InitialBariera170Lanes, 0, L) : 0;
-            int fin170  = !is60Legacy ? Math.Clamp(plan.AfterSwitchBariera170Lanes, 0, L) : 0;
-
-            int init200 = !is60Legacy ? Math.Clamp(plan.InitialBariera200Lanes, 0, L - init170) : 0;
-            int fin200  = !is60Legacy ? Math.Clamp(plan.AfterSwitchBariera200Lanes, 0, L - fin170) : 0;
-
-            // Počet bariérových drah které jsou aktivní PŘED přepnutím (pro výpočet počtu heatů s bariérou)
             // switchON = přidáváme bariéru (fin > init) → bariéra běží NA KONCI
             // switchOFF = odebíráme bariéru (init > fin) → bariéra běží NA ZAČÁTKU
             bool switchOn150  = fin150 >= init150;

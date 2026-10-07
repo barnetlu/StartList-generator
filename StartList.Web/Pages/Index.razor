@@ -131,37 +131,61 @@
                     <label class="col-form-label col-form-label-sm" style="width:200px">Počet drah:</label>
                     <input type="number" class="form-control form-control-sm num-short"
                            value="@_tp.TotalLanes" min="1" max="10"
-                           @onchange="@(e => { _tp.TotalLanes = int.Parse(e.Value!.ToString()!); InitLaneColors(_tp.TotalLanes); })" />
+                           @onchange="@(e => { _tp.TotalLanes = int.Parse(e.Value!.ToString()!); InitLaneColors(_tp.TotalLanes); InitLaneObstacles(_tp.TotalLanes, _discipline); })" />
                 </div>
-                @if (_discipline == "100")
+                @if (_tp.LaneInitial.Length == _tp.TotalLanes)
                 {
-                    <div class="d-flex align-items-center mb-2 gap-2">
-                        <label class="col-form-label col-form-label-sm" style="width:200px">170 cm před přepnutím:</label>
-                        <input type="number" class="form-control form-control-sm num-short" @bind="_tp.InitialBariera170Lanes" min="0" max="@_tp.TotalLanes" />
-                    </div>
-                    <div class="d-flex align-items-center mb-2 gap-2">
-                        <label class="col-form-label col-form-label-sm" style="width:200px">200 cm před přepnutím:</label>
-                        <input type="number" class="form-control form-control-sm num-short" @bind="_tp.InitialBariera200Lanes" min="0" max="@_tp.TotalLanes" />
-                    </div>
-                    <div class="d-flex align-items-center mb-2 gap-2">
-                        <label class="col-form-label col-form-label-sm" style="width:200px">170 cm po přepnutí:</label>
-                        <input type="number" class="form-control form-control-sm num-short" @bind="_tp.AfterSwitchBariera170Lanes" min="0" max="@_tp.TotalLanes" />
-                    </div>
-                    <div class="d-flex align-items-center mb-2 gap-2">
-                        <label class="col-form-label col-form-label-sm" style="width:200px">200 cm po přepnutí:</label>
-                        <input type="number" class="form-control form-control-sm num-short" @bind="_tp.AfterSwitchBariera200Lanes" min="0" max="@_tp.TotalLanes" />
-                    </div>
-                }
-                else
-                {
-                    <div class="d-flex align-items-center mb-2 gap-2">
-                        <label class="col-form-label col-form-label-sm" style="width:200px">Bariér před přepnutím:</label>
-                        <input type="number" class="form-control form-control-sm num-short" @bind="_tp.InitialBarieraLanes" min="0" max="@_tp.TotalLanes" />
-                    </div>
-                    <div class="d-flex align-items-center mb-2 gap-2">
-                        <label class="col-form-label col-form-label-sm" style="width:200px">Bariér po přepnutí:</label>
-                        <input type="number" class="form-control form-control-sm num-short" @bind="_tp.AfterSwitchBarieraLanes" min="0" max="@_tp.TotalLanes" />
-                    </div>
+                    <div class="mb-2" style="font-size:0.8rem;color:#6c757d">Překážky v drahách:</div>
+                    <table class="table table-sm table-bordered mb-2" style="max-width:320px;font-size:0.82rem">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:50px">Dráha</th>
+                                <th>Před přepnutím</th>
+                                <th>Po přepnutí</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (int l = 0; l < _tp.TotalLanes; l++)
+                            {
+                                var lc = l;
+                                <tr>
+                                    <td class="text-center fw-bold">@(lc + 1)</td>
+                                    <td>
+                                        <select class="form-select form-select-sm p-0 ps-1"
+                                                value="@_tp.LaneInitial[lc]"
+                                                @onchange="@(e => _tp.LaneInitial[lc] = Enum.Parse<ObstacleType>(e.Value!.ToString()!))">
+                                            <option value="@ObstacleType.Crossbar">Příčka</option>
+                                            @if (_discipline == "60")
+                                            {
+                                                <option value="@ObstacleType.Barrier150">150 cm</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@ObstacleType.Barrier170">170 cm</option>
+                                                <option value="@ObstacleType.Barrier200">200 cm</option>
+                                            }
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select class="form-select form-select-sm p-0 ps-1"
+                                                value="@_tp.LaneAfterSwitch[lc]"
+                                                @onchange="@(e => _tp.LaneAfterSwitch[lc] = Enum.Parse<ObstacleType>(e.Value!.ToString()!))">
+                                            <option value="@ObstacleType.Crossbar">Příčka</option>
+                                            @if (_discipline == "60")
+                                            {
+                                                <option value="@ObstacleType.Barrier150">150 cm</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@ObstacleType.Barrier170">170 cm</option>
+                                                <option value="@ObstacleType.Barrier200">200 cm</option>
+                                            }
+                                        </select>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
                 }
                 <div class="d-flex align-items-center mb-2 gap-2">
                     <label class="col-form-label col-form-label-sm" style="width:200px">Přepínání překážek:</label>
@@ -981,6 +1005,8 @@
         _startNumberMode    = cfg.StartNumberMode;
         _categoryOrder      = cfg.CategoryOrder.ToList();
 
+        InitLaneObstaclesFromCounts(cfg.TrackPlan.TotalLanes, _discipline);
+
         // Načti paletu barev
         if (_colorOptions.Count == 0)
         {
@@ -1100,6 +1126,8 @@
         InitialBarieraLanes        = _tp.InitialBarieraLanes,
         AfterSwitchBarieraLanes    = _tp.AfterSwitchBarieraLanes,
         SwitchRule                 = _tp.SwitchRule,
+        CustomInitialLayout        = _tp.LaneInitial.Length == _tp.TotalLanes ? _tp.LaneInitial : null,
+        CustomAfterSwitchLayout    = _tp.LaneAfterSwitch.Length == _tp.TotalLanes ? _tp.LaneAfterSwitch : null,
     };
 
     // Mutable kopie TrackPlan pro formulář (TrackPlan má init-only properties)
@@ -1113,6 +1141,52 @@
         public int InitialBarieraLanes { get; set; } = 0;
         public int AfterSwitchBarieraLanes { get; set; } = 1;
         public SwitchRuleType SwitchRule { get; set; } = SwitchRuleType.Automatic;
+        public ObstacleType[] LaneInitial      { get; set; } = Array.Empty<ObstacleType>();
+        public ObstacleType[] LaneAfterSwitch  { get; set; } = Array.Empty<ObstacleType>();
+    }
+
+    private void InitLaneObstacles(int totalLanes, string discipline)
+    {
+        var prev0 = _tp.LaneInitial;
+        var prev1 = _tp.LaneAfterSwitch;
+
+        _tp.LaneInitial     = new ObstacleType[totalLanes];
+        _tp.LaneAfterSwitch = new ObstacleType[totalLanes];
+
+        // copy existing values where lanes overlap
+        for (int i = 0; i < totalLanes; i++)
+        {
+            _tp.LaneInitial[i]     = i < prev0.Length ? prev0[i] : ObstacleType.Crossbar;
+            _tp.LaneAfterSwitch[i] = i < prev1.Length ? prev1[i] : ObstacleType.Crossbar;
+        }
+    }
+
+    private void InitLaneObstaclesFromCounts(int totalLanes, string discipline)
+    {
+        _tp.LaneInitial     = new ObstacleType[totalLanes];
+        _tp.LaneAfterSwitch = new ObstacleType[totalLanes];
+
+        if (discipline == "60")
+        {
+            int finB = Math.Clamp(_tp.AfterSwitchBarieraLanes, 0, totalLanes);
+            for (int i = 0; i < totalLanes; i++)
+            {
+                _tp.LaneInitial[i]     = ObstacleType.Crossbar;
+                _tp.LaneAfterSwitch[i] = i >= totalLanes - finB ? ObstacleType.Barrier150 : ObstacleType.Crossbar;
+            }
+        }
+        else
+        {
+            int fin170 = Math.Clamp(_tp.AfterSwitchBariera170Lanes, 0, totalLanes);
+            int fin200 = Math.Clamp(_tp.AfterSwitchBariera200Lanes, 0, totalLanes - fin170);
+            for (int i = 0; i < totalLanes; i++)
+            {
+                _tp.LaneInitial[i] = ObstacleType.Crossbar;
+                if      (i >= totalLanes - fin200)         _tp.LaneAfterSwitch[i] = ObstacleType.Barrier200;
+                else if (i >= totalLanes - fin200 - fin170) _tp.LaneAfterSwitch[i] = ObstacleType.Barrier170;
+                else                                       _tp.LaneAfterSwitch[i] = ObstacleType.Crossbar;
+            }
+        }
     }
 
     private static IReadOnlyList<Competitor> LoadFile(PendingFile file, CategoryCatalog catalog, CategoryTextMapper mapper, IInteractiveResolver resolver)

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using StartList_Core.Models.Enums;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -14,5 +15,10 @@ namespace StartList_Core.Scheduling.Config
         public int InitialBariera200Lanes { get; init; } = 0;
         public int AfterSwitchBariera200Lanes { get; init; } = 1;
         public SwitchRuleType SwitchRule { get; init; } = SwitchRuleType.Automatic;
+
+        /// Per-lane obstacle assignment before the switch. When set and length == TotalLanes,
+        /// overrides the count-based fields above.
+        public IReadOnlyList<ObstacleType>? CustomInitialLayout { get; init; }
+        public IReadOnlyList<ObstacleType>? CustomAfterSwitchLayout { get; init; }
     }
 }
